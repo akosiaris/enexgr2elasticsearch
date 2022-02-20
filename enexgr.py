@@ -124,7 +124,7 @@ def main():
                         action='count',
                         default=0,
                         dest='verbose',
-                        help='Increase verbosity. Maybe specified multiple times')
+                        help='Increase verbosity. May be specified multiple times')
     parser.add_argument('--version',
                         action='version',
                         version='%(prog)s ' + VERSION)
@@ -156,7 +156,7 @@ def main():
                 data = convert_workbook(xlsx)
                 logging.debug('Successful conversion of xlsx to json. Date: {}, market: {}'.format(d, market))
                 if post_to_elastic(data):
-                    logging.info('Posted elasticsearch. Date: {}, market: {}'.format(d, market))
+                    logging.info('Posted to elasticsearch. Date: {}, market: {}'.format(d, market))
 
 
 if __name__ == '__main__':
