@@ -9,7 +9,7 @@ from openpyxl import load_workbook
 from pytz import timezone
 from requests.auth import HTTPBasicAuth
 
-INDEX = 'energy-dam'
+INDEX = os.getenv('ELASTICSEARCH_INDEX')
 ELASTIC_USERNAME = os.getenv('ELASTIC_USERNAME')
 ELASTIC_PASSWORD = os.getenv('ELASTIC_PASSWORD')
 BULK_URL = 'http://localhost:9200/_bulk/'
@@ -33,9 +33,9 @@ def post_to_elastic(r):
         data=r.encode('utf-8'),
         auth=HTTPBasicAuth(ELASTIC_USERNAME, ELASTIC_PASSWORD))
     if response.status_code != 200:
-        print("Error: %s, %s" % (response.status_code, response.content.decode()))
+        print('Error: %s, %s' % (response.status_code, response.content.decode()))
     else:
-        print("Bulk data indexed succesfully, size: %s" % len(r))
+        print('Bulk data indexed succesfully, size: %s' % len(r))
 
 
 def fetch_new_xlsx(url):
