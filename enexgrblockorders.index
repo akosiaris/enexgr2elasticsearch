@@ -1,0 +1,25 @@
+{
+  "mappings": {
+    "properties": {
+      "TARGET": { "type": "keyword" },
+      "BIDDING_ZONE_DESCR": { "type": "text" },
+      "SIDE_DESCR": { "type": "keyword" },
+      "DDAY": { "type": "date" },
+      "CLASSIFICATION": { "type": "keyword" },
+      "DELIVERY_MTU": { "type": "date" },
+      "DELIVERY_DURATION": { "type": "double" },
+      "SORT": { "type": "double" },
+      "TOTAL_ORDERS": { "type": "double" },
+      "TOTAL_QUANTITY":  { "type": "double" },
+      "MATCHED_ORDERS": { "type": "double" },
+      "MATCHED_QUANTITY":  { "type": "double" },
+      "PUB_TIME": { "type": "date" },
+      "VER": { "type": "double" }
+    }
+  },
+  "settings" : {
+     "index" : {
+       "number_of_replicas" : "0"
+     }
+   }
+}

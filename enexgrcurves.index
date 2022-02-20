@@ -1,0 +1,22 @@
+{
+  "mappings": {
+    "properties": {
+      "TARGET": { "type": "keyword" },
+      "SIDE_DESCR": { "type": "keyword" },
+      "DDAY": { "type": "date" },
+      "DELIVERY_MTU": { "type": "date" },
+      "SORT": { "type": "double" },
+      "DELIVERY_DURATION": { "type": "double" },
+      "AA": { "type": "double" },
+      "QUANTITY": { "type": "double" },
+      "UNITPRICE":  { "type": "double" },
+      "PUB_TIME": { "type": "date" },
+      "VER": { "type": "double" }
+    }
+  },
+  "settings" : {
+     "index" : {
+       "number_of_replicas" : "0"
+     }
+   }
+}
