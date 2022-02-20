@@ -57,6 +57,7 @@ def convert_workbook(xlsx):
     header = [x.value for x in tmp]
 
     r = ''
+    hourly_mcps = set()
     for row in rows:
         tmp = [x.value for x in row]
         d = dict(zip(header, tmp))
@@ -74,8 +75,21 @@ def convert_workbook(xlsx):
                 d['CLASSIFICATION'],
                 d['DELIVERY_MTU'])
         r += '\n' + json.dumps(d) + '\n'
+        if d['TARGET'] == 'DAM':
+            hourly_mcps.add((d['MCP'], d['DELIVERY_MTU']))
+    if len(hourly_mcps) > 0:
+        for mcp in hourly_mcps:
+            r += '{ "index": { "_index": "%s", "_id": "DAM-%s-MCP-HOURLY" } }' % (
+                    INDEX,
+                    mcp[1])
+            r += '\n{ "HOURLY_MCP": %s, "DELIVERY_MTU": "%s" }\n' % mcp
+        daily_mcp = sum([x[0] for x in hourly_mcps])/len(hourly_mcps)
+        dtime = min([x[1] for x in hourly_mcps])
+        r += '{ "index": { "_index": "%s", "_id": "DAM-%s-MCP-DAILY" } }' % (
+                INDEX,
+                dtime)
+        r += '\n{ "DAILY_MCP": %s, "DELIVERY_MTU": "%s" }\n' % (daily_mcp, dtime)
     return r
-    print(r)
 
 
 def main():
