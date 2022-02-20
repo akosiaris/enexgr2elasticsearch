@@ -24,6 +24,9 @@ MARKET_BASE_URLS = {
     'LIDA1': '20126/235155/%s_EL-LIDA1_Results_EN_v01.xlsx',
     'LIDA2': '20126/263261/%s_EL-LIDA2_Results_EN_v01.xlsx',
     'LIDA3': '20126/263280/%s_EL-LIDA3_Results_EN_v01.xlsx',
+    'CRIDA1': '20126/853663/%s_EL-CRIDA1_Results_EN_v01.xlsx',
+    'CRIDA2': '20126/853680/%s_EL-CRIDA2_Results_EN_v01.xlsx',
+    'CRIDA3': '20126/853704/%s_EL-CRIDA3_Results_EN_v01.xlsx',
 }
 
 def post_to_elastic(r):
@@ -140,6 +143,12 @@ def main():
         d = start_date + timedelta(days=x)
         for market, base_url in MARKET_BASE_URLS.items():
             url = BASE_ENEX_URL + '/' + base_url % d.strftime('%Y%m%d')
+            # In 2021-09-22 LIDAs were renamed to CRIDAs. Don't try to fetch
+            # LIDAs after this time and CRIDAs before this time
+            if d > datetime(2021, 9, 21) and market.startswith('LIDA'):
+                continue
+            if d <= datetime(2021, 9, 21) and market.startswith('CRIDA'):
+                continue
             tmp = fetch_new_xlsx(url)
             if tmp:
                 logging.debug('Successful fetch. Date: {}, market: {}'.format(d, market))
