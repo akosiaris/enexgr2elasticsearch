@@ -115,12 +115,15 @@ def main():
                         help='The end date. YYYY-MM-DD format')
     parser.add_argument('-v',
                         '--verbose',
-                        action='store_true',
+                        action='count',
+                        default=0,
                         dest='verbose',
                         help='Increase verbosity. Maybe specified multiple times')
     args = parser.parse_args()
-    if args.verbose:
+    if args.verbose == 1:
         logging.basicConfig(level=logging.INFO)
+    if args.verbose > 1:
+        logging.basicConfig(level=logging.DEBUG)
 
     start_date = datetime.strptime(args.start, '%Y-%m-%d')
     end_date = datetime.strptime(args.end, '%Y-%m-%d')
