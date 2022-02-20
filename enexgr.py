@@ -9,7 +9,7 @@ from openpyxl import load_workbook
 from pytz import timezone
 from requests.auth import HTTPBasicAuth
 
-INDEX = os.getenv('ELASTICSEARCH_INDEX')
+INDEX = os.getenv('ELASTIC_INDEX')
 ELASTIC_USERNAME = os.getenv('ELASTIC_USERNAME')
 ELASTIC_PASSWORD = os.getenv('ELASTIC_PASSWORD')
 BULK_URL = 'http://localhost:9200/_bulk/'
