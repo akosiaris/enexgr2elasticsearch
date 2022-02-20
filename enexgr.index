@@ -1,0 +1,24 @@
+{
+  "mappings": {
+    "properties": {
+      "TARGET": { "type": "keyword" },
+      "BIDDING_ZONE_DESCR": { "type": "text" },
+      "SIDE_DESCR": { "type": "keyword" },
+      "DDAY": { "type": "date" },
+      "ASSET_DESCR": { "type": "keyword" },
+      "CLASSIFICATION": { "type": "keyword" },
+      "DELIVERY_MTU": { "type": "date" },
+      "DELIVERY_DURATION": { "type": "double" },
+      "SORT": { "type": "double" },
+      "MCP": { "type": "double" },
+      "TOTAL_TRADES":  { "type": "double" },
+      "PUB_TIME": { "type": "date" },
+      "VER": { "type": "double" }
+    }
+  },
+  "settings" : {
+     "index" : {
+       "number_of_replicas" : "0"
+     }
+   }
+}
