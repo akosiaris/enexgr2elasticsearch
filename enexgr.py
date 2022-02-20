@@ -106,7 +106,7 @@ def main():
     parser.add_argument('-s',
                         '--start',
                         dest='start',
-                        default=(datetime.now().date()+DELTA).strftime('%Y-%m-%d'),
+                        default=datetime.now().date().strftime('%Y-%m-%d'),
                         help='The start date. YYYY-MM-DD format')
     parser.add_argument('-e',
                         '--end',
