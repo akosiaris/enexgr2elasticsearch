@@ -102,11 +102,11 @@ def main():
     parser = argparse.ArgumentParser(description='Fetch DAM data and put into elastic')
     parser.add_argument('--start',
                         dest='start',
-                        default=datetime.now().date().strftime('%Y-%m-%d'),
+                        default=(datetime.now().date()+DELTA).strftime('%Y-%m-%d'),
                         help='The start date. YYYY-MM-DD format')
     parser.add_argument('--end',
                         dest='end',
-                        default=datetime.now().date().strftime('%Y-%m-%d'),
+                        default=(datetime.now().date()+DELTA).strftime('%Y-%m-%d'),
                         help='The end date. YYYY-MM-DD format')
     args = parser.parse_args()
 
