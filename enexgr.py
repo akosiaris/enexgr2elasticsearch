@@ -42,14 +42,20 @@ def fetch_new_xlsx(url):
     r = requests.get(url)
     if r.status_code == 200:
         return r.content
+    elif r.status_code == 404:
+        return None
     else:
         raise RuntimeError('Failed to fetch: %s' % r.status_code)
 
 
 def convert_workbook(xlsx):
-    wb = load_workbook(
-            filename=xlsx,
-            read_only=False)
+    try:
+        wb = load_workbook(
+                filename=xlsx,
+                read_only=False)
+    except Exception as e:
+        print(xlsx)
+        raise e
     ws = wb.active
     rows = ws.rows
 
@@ -113,9 +119,11 @@ def main():
         d = start_date + timedelta(days=x)
         for market, base_url in MARKET_BASE_URLS.items():
             url = BASE_ENEX_URL + '/' + base_url % d.strftime('%Y%m%d')
-            xlsx = io.BytesIO(fetch_new_xlsx(url))
-            data = convert_workbook(xlsx)
-            post_to_elastic(data)
+            tmp = fetch_new_xlsx(url)
+            if tmp:
+                xlsx = io.BytesIO(tmp)
+                data = convert_workbook(xlsx)
+                post_to_elastic(data)
 
 
 if __name__ == '__main__':
