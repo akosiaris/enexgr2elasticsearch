@@ -1,6 +1,7 @@
 import argparse
 import io
 import json
+import logging
 import os
 import requests
 
@@ -33,9 +34,11 @@ def post_to_elastic(r):
         data=r.encode('utf-8'),
         auth=HTTPBasicAuth(ELASTIC_USERNAME, ELASTIC_PASSWORD))
     if response.status_code != 200:
-        print('Error: %s, %s' % (response.status_code, response.content.decode()))
+        logging.error('Error: %s, %s' % (response.status_code, response.content.decode()))
+        return False
     else:
-        print('Bulk data indexed succesfully, size: %s' % len(r))
+        logging.debug('Bulk data indexed succesfully, size: %s' % len(r))
+    return True
 
 
 def fetch_new_xlsx(url):
@@ -54,7 +57,7 @@ def convert_workbook(xlsx):
                 filename=xlsx,
                 read_only=False)
     except Exception as e:
-        print(xlsx)
+        logging.error(xlsx)
         raise e
     ws = wb.active
     rows = ws.rows
@@ -108,7 +111,13 @@ def main():
                         dest='end',
                         default=(datetime.now().date()+DELTA).strftime('%Y-%m-%d'),
                         help='The end date. YYYY-MM-DD format')
+    parser.add_argument('--verbose',
+                        action='store_true',
+                        dest='verbose',
+                        help='Increase verbosity. Maybe specified multiple times')
     args = parser.parse_args()
+    if args.verbose:
+        logging.basicConfig(level=logging.INFO)
 
     start_date = datetime.strptime(args.start, '%Y-%m-%d')
     end_date = datetime.strptime(args.end, '%Y-%m-%d')
@@ -121,9 +130,12 @@ def main():
             url = BASE_ENEX_URL + '/' + base_url % d.strftime('%Y%m%d')
             tmp = fetch_new_xlsx(url)
             if tmp:
+                logging.debug('Successful fetch. Date: {}, market: {}'.format(d, market))
                 xlsx = io.BytesIO(tmp)
                 data = convert_workbook(xlsx)
-                post_to_elastic(data)
+                logging.debug('Successful conversion of xlsx to json. Date: {}, market: {}'.format(d, market))
+                if post_to_elastic(data):
+                    logging.info('Posted elasticsearch. Date: {}, market: {}'.format(d, market))
 
 
 if __name__ == '__main__':
