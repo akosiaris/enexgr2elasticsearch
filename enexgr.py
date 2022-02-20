@@ -103,15 +103,18 @@ def convert_workbook(xlsx):
 
 def main():
     parser = argparse.ArgumentParser(description='Fetch DAM data and put into elastic')
-    parser.add_argument('--start',
+    parser.add_argument('-s',
+                        '--start',
                         dest='start',
                         default=(datetime.now().date()+DELTA).strftime('%Y-%m-%d'),
                         help='The start date. YYYY-MM-DD format')
-    parser.add_argument('--end',
+    parser.add_argument('-e',
+                        '--end',
                         dest='end',
                         default=(datetime.now().date()+DELTA).strftime('%Y-%m-%d'),
                         help='The end date. YYYY-MM-DD format')
-    parser.add_argument('--verbose',
+    parser.add_argument('-v',
+                        '--verbose',
                         action='store_true',
                         dest='verbose',
                         help='Increase verbosity. Maybe specified multiple times')
