@@ -10,6 +10,7 @@ from openpyxl import load_workbook
 from pytz import timezone
 from requests.auth import HTTPBasicAuth
 
+VERSION = '0.1'
 INDEX = os.getenv('ELASTIC_INDEX')
 ELASTIC_USERNAME = os.getenv('ELASTIC_USERNAME')
 ELASTIC_PASSWORD = os.getenv('ELASTIC_PASSWORD')
@@ -102,7 +103,9 @@ def convert_workbook(xlsx):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Fetch DAM data and put into elastic')
+    parser = argparse.ArgumentParser(
+            prog='enexgr.py',
+            description='Fetch DAM data and put into elastic')
     parser.add_argument('-s',
                         '--start',
                         dest='start',
@@ -119,6 +122,9 @@ def main():
                         default=0,
                         dest='verbose',
                         help='Increase verbosity. Maybe specified multiple times')
+    parser.add_argument('--version',
+                        action='version',
+                        version='%(prog)s ' + VERSION)
     args = parser.parse_args()
     if args.verbose == 1:
         logging.basicConfig(level=logging.INFO)
