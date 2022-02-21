@@ -1,0 +1,280 @@
+'''
+Populate 3 elasticsearch clusters with Greek Energy Exchange Group free data
+
+Copyright Alexandros Kosiaris 2022
+'''
+
+import argparse
+import io
+import json
+import logging
+import os
+from datetime import datetime, timedelta
+
+import requests
+from openpyxl import load_workbook
+from pytz import timezone
+from requests.auth import HTTPBasicAuth
+
+VERSION = '0.1'
+INDEX_RESULTS = os.getenv('ELASTIC_INDEX_RESULTS')
+INDEX_CURVES = os.getenv('ELASTIC_INDEX_CURVES')
+INDEX_BLOCKORDERS = os.getenv('ELASTIC_INDEX_BLOCKORDERS')
+ELASTIC_USERNAME = os.getenv('ELASTIC_USERNAME')
+ELASTIC_PASSWORD = os.getenv('ELASTIC_PASSWORD')
+BULK_URL = 'http://localhost:9200/_bulk/'
+TZ = timezone('Europe/Athens')
+DELTA = timedelta(days=1)
+
+BASE_ENEX_URL = 'https://www.enexgroup.gr/documents'
+MARKET_BASE_URLS = {
+    'RESULTS': {
+        'DAM':   '20126/200106/%s_EL-DAM_Results_EN_v01.xlsx',
+        'LIDA1': '20126/235155/%s_EL-LIDA1_Results_EN_v01.xlsx',
+        'LIDA2': '20126/263261/%s_EL-LIDA2_Results_EN_v01.xlsx',
+        'LIDA3': '20126/263280/%s_EL-LIDA3_Results_EN_v01.xlsx',
+        'CRIDA1': '20126/853663/%s_EL-CRIDA1_Results_EN_v01.xlsx',
+        'CRIDA2': '20126/853680/%s_EL-CRIDA2_Results_EN_v01.xlsx',
+        'CRIDA3': '20126/853704/%s_EL-CRIDA3_Results_EN_v01.xlsx',
+    },
+    'CURVES': {
+        'DAM': '20126/200034/%s_EL-DAM_AggrCurves_EN_v01.xlsx',
+        'CRIDA1': '20126/853660/%s_EL-CRIDA1_AggrCurves_EN_v01.xlsx',
+        'CRIDA2': '20126/853695/%s_EL-CRIDA2_AggrCurves_EN_v01.xlsx',
+        'CRIDA3': '20126/853701/%s_EL-CRIDA3_AggrCurves_EN_v01.xlsx',
+    },
+    'BLOCKORDERS': {
+        'DAM': '20126/270103/%s_EL-DAM_BLKORDRs_EN_v01.xlsx',
+    },
+}
+
+def post_to_elastic(data: str) -> bool:
+    '''
+    Post to elasticsearch
+    '''
+
+    response = requests.post(
+        BULK_URL,
+        headers={
+            'Content-Type': 'application/x-ndjson',
+        },
+        data=data.encode('utf-8'),
+        auth=HTTPBasicAuth(ELASTIC_USERNAME, ELASTIC_PASSWORD))
+    if response.status_code != 200:
+        logging.error('Error: %s, %s', response.status_code, response.content.decode())
+        return False
+
+    logging.debug('Bulk data indexed succesfully, size: %s', len(data))
+    return True
+
+
+def fetch_new_xlsx(url: str) -> str:
+    '''
+    Fetch and validate a new xlsx from enexgroup.gr
+    '''
+
+    resp = requests.get(url)
+    if resp.status_code == 200:
+        return resp.content
+    if resp.status_code == 404 or resp.status_code == 403:
+        return None
+    raise RuntimeError('Failed to fetch: %s' % resp.status_code)
+
+
+def convert_market_results_workbook(xlsx: str) -> str:
+    '''
+    Converts the data from an enexgroup market result xlsx file to a ready for
+    elasticsearch bulk API POST string
+    '''
+
+    try:
+        workbook = load_workbook(
+                filename=xlsx,
+                read_only=False)
+    except Exception as exc:
+        logging.error(xlsx)
+        raise exc
+    rows = workbook.active.rows
+
+    tmp = next(rows)
+    header = [x.value for x in tmp]
+
+    ret = ''
+    hourly_mcps = set()
+    for row in rows:
+        tmp = [x.value for x in row]
+        data = dict(zip(header, tmp))
+        delivery_timestamp = datetime.fromisoformat(data['DELIVERY_MTU'])
+        data['DELIVERY_MTU'] = TZ.localize(delivery_timestamp).isoformat()
+        pub_timestamp = datetime.fromisoformat(data['PUB_TIME'])
+        data['PUB_TIME'] = TZ.localize(pub_timestamp).isoformat()
+        ret += '{ "index": { "_index": "%s", "_id": "%s-%s-%s-%s-%s-%s-%s" } }' % (
+                INDEX_RESULTS,
+                data['TARGET'],
+                data['BIDDING_ZONE_DESCR'],
+                data['SIDE_DESCR'],
+                data['DDAY'],
+                data['ASSET_DESCR'],
+                data['CLASSIFICATION'],
+                data['DELIVERY_MTU'])
+        ret += '\n' + json.dumps(data) + '\n'
+        if data['TARGET'] == 'DAM':
+            hourly_mcps.add((data['MCP'], data['DELIVERY_MTU']))
+    if len(hourly_mcps) > 0:
+        for mcp in hourly_mcps:
+            ret += '{ "index": { "_index": "%s", "_id": "DAM-%s-MCP-HOURLY" } }' % (
+                    INDEX_RESULTS,
+                    mcp[1])
+            ret += '\n{ "HOURLY_MCP": %s, "DELIVERY_MTU": "%s" }\n' % mcp
+        daily_mcp = sum([x[0] for x in hourly_mcps])/len(hourly_mcps)
+        dtime = min([x[1] for x in hourly_mcps])
+        ret += '{ "index": { "_index": "%s", "_id": "DAM-%s-MCP-DAILY" } }' % (
+                INDEX_RESULTS,
+                dtime)
+        ret += '\n{ "DAILY_MCP": %s, "DELIVERY_MTU": "%s" }\n' % (daily_mcp, dtime)
+    return ret
+
+
+def convert_curves_workbook(xlsx: str) -> str:
+    '''
+    Convert the data from an enexgroup aggregated curves result xlsx file to a
+    ready for elasticsearch bulk API POST string
+    '''
+
+    try:
+        workbook = load_workbook(
+                filename=xlsx,
+                read_only=False)
+    except Exception as exc:
+        logging.error(xlsx)
+        raise exc
+    rows = workbook.active.rows
+
+    tmp = next(rows)
+    header = [x.value for x in tmp]
+
+    ret = ''
+    for row in rows:
+        tmp = [x.value for x in row]
+        data = dict(zip(header, tmp))
+        # TODO: Tell them they are inconsistent
+        data['DELIVERY_MTU'] = data['DELIVERY_MTU'].replace('/', '-')
+        data['PUB_TIME'] = data['PUB_TIME'].replace('/', '-')
+        delivery_timestamp = datetime.fromisoformat(data['DELIVERY_MTU'])
+        data['DELIVERY_MTU'] = TZ.localize(delivery_timestamp).isoformat()
+        pub_timestamp = datetime.fromisoformat(data['PUB_TIME'])
+        data['PUB_TIME'] = TZ.localize(pub_timestamp).isoformat()
+        ret += '{ "index": { "_index": "%s", "_id": "%s-%s-%s-%s-%s" } }' % (
+                INDEX_CURVES,
+                data['TARGET'],
+                data['SIDE_DESCR'],
+                data['DDAY'],
+                data['AA'],
+                data['DELIVERY_MTU'])
+        ret += '\n' + json.dumps(data) + '\n'
+    return ret
+
+
+def convert_blockorders_workbook(xlsx: str) -> str:
+    '''
+    Convert the data from an enexgroup block orders result xlsx file to a
+    ready for elasticsearch bulk API POST string
+    '''
+
+    try:
+        workbook = load_workbook(
+                filename=xlsx,
+                read_only=False)
+    except Exception as exc:
+        logging.error(xlsx)
+        raise exc
+    rows = workbook.rows.active
+
+    tmp = next(rows)
+    header = [x.value for x in tmp]
+
+    ret = ''
+    for row in rows:
+        tmp = [x.value for x in row]
+        data = dict(zip(header, tmp))
+        delivery_timestamp = datetime.fromisoformat(data['DELIVERY_MTU'])
+        data['DELIVERY_MTU'] = TZ.localize(delivery_timestamp).isoformat()
+        pub_timestamp = datetime.fromisoformat(data['PUB_TIME'])
+        data['PUB_TIME'] = TZ.localize(pub_timestamp).isoformat()
+        ret += '{ "index": { "_index": "%s", "_id": "%s-%s-%s-%s-%s-%s" } }' % (
+                INDEX_BLOCKORDERS,
+                data['TARGET'],
+                data['BIDDING_ZONE_DESCR'],
+                data['SIDE_DESCR'],
+                data['DDAY'],
+                data['CLASSIFICATION'],
+                data['DELIVERY_MTU'])
+        ret += '\n' + json.dumps(data) + '\n'
+    return ret
+
+def main():
+    '''
+    Main function
+    '''
+
+    parser = argparse.ArgumentParser(
+            prog='enexgr.py',
+            description='Fetch DAM data and put into elastic')
+    parser.add_argument('-s',
+                        '--start',
+                        dest='start',
+                        default=datetime.now().date().strftime('%Y-%m-%d'),
+                        help='The start date. YYYY-MM-DD format')
+    parser.add_argument('-e',
+                        '--end',
+                        dest='end',
+                        default=(datetime.now().date()+DELTA).strftime('%Y-%m-%d'),
+                        help='The end date. YYYY-MM-DD format')
+    parser.add_argument('-v',
+                        '--verbose',
+                        action='count',
+                        default=0,
+                        dest='verbose',
+                        help='Increase verbosity. May be specified multiple times')
+    parser.add_argument('--version',
+                        action='version',
+                        version='%(prog)s ' + VERSION)
+    args = parser.parse_args()
+    if args.verbose == 1:
+        logging.basicConfig(level=logging.INFO)
+    if args.verbose > 1:
+        logging.basicConfig(level=logging.DEBUG)
+
+    start_date = datetime.strptime(args.start, '%Y-%m-%d')
+    end_date = datetime.strptime(args.end, '%Y-%m-%d')
+
+    day_count = (end_date - start_date).days + 1
+
+    for delta in range(0, day_count):
+        date = start_date + timedelta(days=delta)
+        for category, data in MARKET_BASE_URLS.items():
+            for market, base_url in data.items():
+                url = BASE_ENEX_URL + '/' + base_url % date.strftime('%Y%m%d')
+                # In 2021-09-22 LIDAs were renamed to CRIDAs. Don't try to fetch
+                # LIDAs after this time and CRIDAs before this time
+                if date > datetime(2021, 9, 21) and market.startswith('LIDA'):
+                    continue
+                if date <= datetime(2021, 9, 21) and market.startswith('CRIDA'):
+                    continue
+                tmp = fetch_new_xlsx(url)
+                if tmp:
+                    logging.debug('Successful fetch. Date: %s, category: %s, market: %s', date, category, market)
+                    xlsx = io.BytesIO(tmp)
+                    if category == 'RESULTS':
+                        data = convert_market_results_workbook(xlsx)
+                    if category == 'CURVES':
+                        data = convert_curves_workbook(xlsx)
+                    if category == 'BLOCKORDERS':
+                        data = convert_blockorders_workbook(xlsx)
+                    logging.debug('Successful conversion of xlsx to json. Date: %s, category: %s, market: %s', date, category, market)
+                    if post_to_elastic(data):
+                        logging.info('Posted to elasticsearch. Date: %s, category: %s, market: %s', date, category, market)
+
+
+if __name__ == '__main__':
+    main()
