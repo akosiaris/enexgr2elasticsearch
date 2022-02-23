@@ -28,7 +28,7 @@ TZ = timezone('Europe/Athens')
 DELTA = timedelta(days=1)
 
 BASE_ENEX_URL = 'https://www.enexgroup.gr/documents'
-MARKET_BASE_URLS = {
+ELECTRICITY_MARKET_BASE_URLS = {
     'RESULTS': {
         'DAM':   '20126/200106/%s_EL-DAM_Results_EN_v01.xlsx',
         'LIDA1': '20126/235155/%s_EL-LIDA1_Results_EN_v01.xlsx',
@@ -89,7 +89,7 @@ def fetch_new_xlsx(url: str) -> str:
     raise RuntimeError('Failed to fetch: %s' % resp.status_code)
 
 
-def convert_market_results_workbook(xlsx: str) -> str:
+def convert_electricity_market_results_workbook(xlsx: str) -> str:
     '''
     Converts the data from an enexgroup market result xlsx file to a ready for
     elasticsearch bulk API POST string
@@ -143,7 +143,7 @@ def convert_market_results_workbook(xlsx: str) -> str:
     return ret
 
 
-def convert_curves_workbook(xlsx: str) -> str:
+def convert_electricity_curves_workbook(xlsx: str) -> str:
     '''
     Convert the data from an enexgroup aggregated curves result xlsx file to a
     ready for elasticsearch bulk API POST string
@@ -183,7 +183,7 @@ def convert_curves_workbook(xlsx: str) -> str:
     return ret
 
 
-def convert_blockorders_workbook(xlsx: str) -> str:
+def convert_electricity_blockorders_workbook(xlsx: str) -> str:
     '''
     Convert the data from an enexgroup block orders result xlsx file to a
     ready for elasticsearch bulk API POST string
@@ -309,11 +309,11 @@ def main():
                     logging.debug('Successful fetch. Date: %s, category: %s, market: %s', date, category, market)
                     xlsx = io.BytesIO(tmp)
                     if category == 'RESULTS':
-                        data = convert_market_results_workbook(xlsx)
+                        data = convert_electricity_market_results_workbook(xlsx)
                     if category == 'CURVES':
-                        data = convert_curves_workbook(xlsx)
+                        data = convert_electricity_curves_workbook(xlsx)
                     if category == 'BLOCKORDERS':
-                        data = convert_blockorders_workbook(xlsx)
+                        data = convert_electricity_blockorders_workbook(xlsx)
                     logging.debug('Successful conversion of xlsx to json. Date: %s, category: %s, market: %s', date, category, market)
                     if post_to_elastic(data, bulk_url, elastic_info):
                         logging.info('Posted to elasticsearch. Date: %s, category: %s, market: %s', date, category, market)
