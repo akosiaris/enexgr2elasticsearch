@@ -10,6 +10,7 @@ import json
 import logging
 import os
 from datetime import datetime, timedelta
+from urllib.parse import urljoin
 
 import requests
 from openpyxl import load_workbook
@@ -22,7 +23,7 @@ INDEX_CURVES = os.getenv('ELASTIC_INDEX_CURVES')
 INDEX_BLOCKORDERS = os.getenv('ELASTIC_INDEX_BLOCKORDERS')
 ELASTIC_USERNAME = os.getenv('ELASTIC_USERNAME')
 ELASTIC_PASSWORD = os.getenv('ELASTIC_PASSWORD')
-BULK_URL = 'http://localhost:9200/_bulk/'
+BULK_ENDPOINT = '/_bulk'
 TZ = timezone('Europe/Athens')
 DELTA = timedelta(days=1)
 
@@ -48,18 +49,25 @@ MARKET_BASE_URLS = {
     },
 }
 
-def post_to_elastic(data: str) -> bool:
+def post_to_elastic(data: str, url: str, elastic_info: dict) -> bool:
     '''
     Post to elasticsearch
     '''
+    user = elastic_info.get('user')
+    password = elastic_info.get('password')
+    if user and password:
+        auth=HTTPBasicAuth(ELASTIC_USERNAME, ELASTIC_PASSWORD)
+    else:
+        auth=None
+
 
     response = requests.post(
-        BULK_URL,
+        url,
         headers={
             'Content-Type': 'application/x-ndjson',
         },
         data=data.encode('utf-8'),
-        auth=HTTPBasicAuth(ELASTIC_USERNAME, ELASTIC_PASSWORD))
+        auth=auth)
     if response.status_code != 200:
         logging.error('Error: %s, %s', response.status_code, response.content.decode())
         return False
@@ -220,6 +228,29 @@ def main():
     parser = argparse.ArgumentParser(
             prog='enexgr.py',
             description='Fetch DAM data and put into elastic')
+    parser.add_argument('-h',
+                        '--host',
+                        dest='host',
+                        default='http://localhost:9200',
+                        help='URL pointing to the elasticsearch cluster')
+    parser.add_argument('-u',
+                        '--user',
+                        dest='user',
+                        help='Elasticsearch user to write data')
+    parser.add_argument('-p',
+                        '--password',
+                        dest='password',
+                        help='Elasticsearch user password')
+    parser.add_argument('--admin-user',
+                        dest='admin_user',
+                        help='Elasticsearch admin user to create the indices')
+    parser.add_argument('--admin-password',
+                        dest='admin_password',
+                        help='Elasticsearch admin user password')
+    parser.add_argument('--create-indices',
+                        action='store_True',
+                        dest='create_incides',
+                        help='Create Elasticsearch indices. Requires elasticsearch admin access')
     parser.add_argument('-s',
                         '--start',
                         dest='start',
@@ -244,15 +275,27 @@ def main():
         logging.basicConfig(level=logging.INFO)
     if args.verbose > 1:
         logging.basicConfig(level=logging.DEBUG)
+    elastic_info = dict(
+            host = args.host,
+            user = args.user,
+            password = args.password)
+    elastic_admin_info = dict(
+            host = args.host,
+            user = args.admin_user,
+            password = args.admin_password)
+
+    if args.create_indices:
+        pass
 
     start_date = datetime.strptime(args.start, '%Y-%m-%d')
     end_date = datetime.strptime(args.end, '%Y-%m-%d')
 
     day_count = (end_date - start_date).days + 1
 
+    bulk_url = urljoin(elastic_info['host'], BULK_ENDPOINT)
     for delta in range(0, day_count):
         date = start_date + timedelta(days=delta)
-        for category, data in MARKET_BASE_URLS.items():
+        for category, data in ELECTRICITY_MARKET_BASE_URLS.items():
             for market, base_url in data.items():
                 url = BASE_ENEX_URL + '/' + base_url % date.strftime('%Y%m%d')
                 # In 2021-09-22 LIDAs were renamed to CRIDAs. Don't try to fetch
@@ -272,7 +315,7 @@ def main():
                     if category == 'BLOCKORDERS':
                         data = convert_blockorders_workbook(xlsx)
                     logging.debug('Successful conversion of xlsx to json. Date: %s, category: %s, market: %s', date, category, market)
-                    if post_to_elastic(data):
+                    if post_to_elastic(data, bulk_url, elastic_info):
                         logging.info('Posted to elasticsearch. Date: %s, category: %s, market: %s', date, category, market)
 
 
