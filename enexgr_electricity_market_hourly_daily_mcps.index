@@ -1,0 +1,9 @@
+{
+  "mappings": {
+    "properties": {
+      "DELIVERY_MTU": { "type": "date" },
+      "HOURLY_MCP": { "type": "double" },
+      "DAILY_MCP": { "type": "double" }
+    }
+  }
+}

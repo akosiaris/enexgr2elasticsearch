@@ -45,6 +45,10 @@ ELECTRICITY_MARKETS_META_DATA = {
                 'DAM': '20126/270103/%s_EL-DAM_BLKORDRs_EN_v01.xlsx',
             },
         },
+        'HOURLY_DAILY_MCPS': {
+            # The hourly_daily_mcp index is a derivative one, so we only have a name
+            'index': 'enexgr_electricity_market_hourly_daily_mcps',
+        },
 }
 
 BULK_ENDPOINT = '/_bulk'
@@ -120,7 +124,7 @@ def fetch_new_xlsx(url: str) -> str:
     raise RuntimeError('Failed to fetch: %s' % resp.status_code)
 
 
-def convert_electricity_market_results_workbook(xlsx: str) -> str:
+def convert_electricity_market_results_workbook(xlsx: str) -> tuple:
     '''
     Converts the data from an enexgroup market result xlsx file to a ready for
     elasticsearch bulk API POST string
@@ -159,16 +163,24 @@ def convert_electricity_market_results_workbook(xlsx: str) -> str:
         ret += '\n' + json.dumps(data) + '\n'
         if data['TARGET'] == 'DAM':
             hourly_mcps.add((data['MCP'], data['DELIVERY_MTU']))
+    return (ret, hourly_mcps)
+
+
+def calculate_electricity_hourly_daily_mcps(hourly_mcps: set) -> str:
+    '''
+    Calculate hourly/daily MCPs and send to dedicated index
+    '''
+    ret = ''
     if len(hourly_mcps) > 0:
         for mcp in hourly_mcps:
             ret += '{ "index": { "_index": "%s", "_id": "DAM-%s-MCP-HOURLY" } }' % (
-                    ELECTRICITY_MARKETS_META_DATA['RESULTS']['index'],
+                    ELECTRICITY_MARKETS_META_DATA['HOURLY_DAILY_MCPS']['index'],
                     mcp[1])
             ret += '\n{ "HOURLY_MCP": %s, "DELIVERY_MTU": "%s" }\n' % mcp
         daily_mcp = sum([x[0] for x in hourly_mcps])/len(hourly_mcps)
         dtime = min([x[1] for x in hourly_mcps])
         ret += '{ "index": { "_index": "%s", "_id": "DAM-%s-MCP-DAILY" } }' % (
-                ELECTRICITY_MARKETS_META_DATA['RESULTS']['index'],
+                ELECTRICITY_MARKETS_META_DATA['HOURLY_DAILY_MCPS']['index'],
                 dtime)
         ret += '\n{ "DAILY_MCP": %s, "DELIVERY_MTU": "%s" }\n' % (daily_mcp, dtime)
     return ret
@@ -368,7 +380,11 @@ def main():
     for delta in range(0, day_count):
         date = start_date + timedelta(days=delta)
         for category, data in ELECTRICITY_MARKETS_META_DATA.items():
-            base_urls = data['base_urls']
+            try:
+                base_urls = data['base_urls']
+            except KeyError:
+                # We don't have base_urls for this index, skip
+                continue
             for market, base_url in base_urls.items():
                 url = BASE_ENEX_URL + '/' + base_url % date.strftime('%Y%m%d')
                 # In 2021-09-22 LIDAs were renamed to CRIDAs. Don't try to fetch
@@ -382,7 +398,8 @@ def main():
                     logging.debug('Successful fetch. Date: %s, category: %s, market: %s', date, category, market)
                     xlsx = io.BytesIO(tmp)
                     if category == 'RESULTS':
-                        data = convert_electricity_market_results_workbook(xlsx)
+                        data, hourly_mcps = convert_electricity_market_results_workbook(xlsx)
+                        data = data + calculate_electricity_hourly_daily_mcps(hourly_mcps)
                     if category == 'CURVES':
                         data = convert_electricity_curves_workbook(xlsx)
                     if category == 'BLOCK_ORDERS':
