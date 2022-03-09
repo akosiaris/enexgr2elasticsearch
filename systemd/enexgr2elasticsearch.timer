@@ -1,0 +1,11 @@
+[Unit]
+Description=Run enexgr refresh
+
+[Timer]
+OnCalendar=*-*-* 12:00:00
+OnCalendar=*-*-* 13:00:00
+OnCalendar=*-*-* 21:00:00
+OnCalendar=*-*-* 09:00:00
+
+[Install]
+WantedBy=timers.target
