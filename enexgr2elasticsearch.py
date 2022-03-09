@@ -309,6 +309,14 @@ def main():
                         action='store_true',
                         dest='create_indices',
                         help='Create Elasticsearch indices. Requires elasticsearch admin access')
+    parser.add_argument('--shards',
+                        default=1,
+                        dest='shards',
+                        help='Number of shards for each Elasticsearch index. Requires elasticsearch admin access')
+    parser.add_argument('--replicas',
+                        default=0,
+                        dest='replicas',
+                        help='Number of replicas for each Elasticsearch index. Requires elasticsearch admin access')
     parser.add_argument('-s',
                         '--start',
                         dest='start',
@@ -344,7 +352,11 @@ def main():
             password = args.admin_password)
 
     if args.create_indices:
-        if not create_elasticsearch_indices(elastic_admin_info, 1, 0):
+        if not create_elasticsearch_indices(
+            elastic_admin_info,
+            args.shards,
+            args.replicas):
+            logging.critical('Failed to create indices despite being asked to')
             return 1
 
     start_date = datetime.strptime(args.start, '%Y-%m-%d')

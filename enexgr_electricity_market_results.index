@@ -15,10 +15,5 @@
       "PUB_TIME": { "type": "date" },
       "VER": { "type": "double" }
     }
-  },
-  "settings" : {
-     "index" : {
-       "number_of_replicas" : "0"
-     }
-   }
+  }
 }
