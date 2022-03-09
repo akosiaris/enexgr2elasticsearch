@@ -196,7 +196,7 @@ def convert_electricity_blockorders_workbook(xlsx: str) -> str:
     except Exception as exc:
         logging.error(xlsx)
         raise exc
-    rows = workbook.rows.active
+    rows = workbook.active.rows
 
     tmp = next(rows)
     header = [x.value for x in tmp]
@@ -228,7 +228,7 @@ def main():
     parser = argparse.ArgumentParser(
             prog='enexgr.py',
             description='Fetch DAM data and put into elastic')
-    parser.add_argument('-h',
+    parser.add_argument('-H',
                         '--host',
                         dest='host',
                         default='http://localhost:9200',
@@ -248,8 +248,8 @@ def main():
                         dest='admin_password',
                         help='Elasticsearch admin user password')
     parser.add_argument('--create-indices',
-                        action='store_True',
-                        dest='create_incides',
+                        action='store_true',
+                        dest='create_indices',
                         help='Create Elasticsearch indices. Requires elasticsearch admin access')
     parser.add_argument('-s',
                         '--start',
