@@ -54,7 +54,7 @@ DELTA = timedelta(days=1)
 
 BASE_ENEX_URL = 'https://www.enexgroup.gr/documents'
 
-def put_to_elastic(data: str, url:str, elastic_info: dict) -> bool:
+def put_to_elastic(data: str, url: str, elastic_info: dict) -> bool:
     '''
     PUT to elasticsearch
     '''
@@ -68,6 +68,9 @@ def put_to_elastic(data: str, url:str, elastic_info: dict) -> bool:
 
     response = requests.put(
         url,
+        headers={
+            'Content-Type': 'application/json',
+        },
         data=data.encode('utf-8'),
         auth=auth)
     if response.status_code != 200:
