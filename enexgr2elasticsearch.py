@@ -54,7 +54,31 @@ DELTA = timedelta(days=1)
 
 BASE_ENEX_URL = 'https://www.enexgroup.gr/documents'
 
-def post_to_elastic(data: str, url: str, elastic_info: dict) -> bool:
+def put_to_elastic(data: str, url:str, elastic_info: dict) -> bool:
+    '''
+    PUT to elasticsearch
+    '''
+    user = elastic_info.get('user')
+    password = elastic_info.get('password')
+    if user and password:
+        auth=HTTPBasicAuth(user, password)
+    else:
+        auth=None
+
+
+    response = requests.put(
+        url,
+        data=data.encode('utf-8'),
+        auth=auth)
+    if response.status_code != 200:
+        logging.error('Error: %s, %s', response.status_code, response.content.decode())
+        return False
+
+    logging.debug('Data PUT successfully to elasticsearch, size: %s', len(data))
+    return True
+
+
+def post_to_bulk_elastic(data: str, url: str, elastic_info: dict) -> bool:
     '''
     Post to elasticsearch
     '''
@@ -321,7 +345,7 @@ def main():
                     if category == 'BLOCK_ORDERS':
                         data = convert_electricity_blockorders_workbook(xlsx)
                     logging.debug('Successful conversion of xlsx to json. Date: %s, category: %s, market: %s', date, category, market)
-                    if post_to_elastic(data, bulk_url, elastic_info):
+                    if post_to_bulk_elastic(data, bulk_url, elastic_info):
                         logging.info('Posted to elasticsearch. Date: %s, category: %s, market: %s', date, category, market)
 
 
