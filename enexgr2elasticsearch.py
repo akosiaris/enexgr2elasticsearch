@@ -252,6 +252,33 @@ def convert_electricity_blockorders_workbook(xlsx: str) -> str:
         ret += '\n' + json.dumps(data) + '\n'
     return ret
 
+
+def create_elasticsearch_indices(elastic_admin_info: dict, shards: int,
+        replicas: int) -> bool:
+    '''
+    Create the elasticsearch indices alongside mappings
+    '''
+
+    indices = map(lambda x: x[1]['index'], ELECTRICITY_MARKETS_META_DATA.items())
+    settings = {
+        "settings": {
+            "number_of_shards": shards,
+            "number_of_replicas": replicas,
+        }
+    }
+    for idx in indices:
+        with open('%s.index' % idx, 'r') as fil:
+            # Load the mappings
+            data = json.load(fil)
+            data.update(settings)
+            url = urljoin(elastic_admin_info['host'], idx)
+            if put_to_elastic(json.dumps(data), url, elastic_admin_info):
+                logging.debug('index: %s created succesfully', idx)
+            else:
+                logging.warning('index creation failed: %s', idx)
+                return False
+    return True
+
 def main():
     '''
     Main function
@@ -317,7 +344,8 @@ def main():
             password = args.admin_password)
 
     if args.create_indices:
-        pass
+        if not create_elasticsearch_indices(elastic_admin_info, 1, 0):
+            return 1
 
     start_date = datetime.strptime(args.start, '%Y-%m-%d')
     end_date = datetime.strptime(args.end, '%Y-%m-%d')
