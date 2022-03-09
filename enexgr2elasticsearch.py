@@ -8,7 +8,6 @@ import argparse
 import io
 import json
 import logging
-import os
 from datetime import datetime, timedelta
 from urllib.parse import urljoin
 
@@ -334,6 +333,7 @@ def main():
         logging.basicConfig(level=logging.INFO)
     if args.verbose > 1:
         logging.basicConfig(level=logging.DEBUG)
+
     elastic_info = dict(
             host = args.host,
             user = args.user,
