@@ -18,36 +18,41 @@ from pytz import timezone
 from requests.auth import HTTPBasicAuth
 
 VERSION = '0.1'
-INDEX_RESULTS = os.getenv('ELASTIC_INDEX_RESULTS')
-INDEX_CURVES = os.getenv('ELASTIC_INDEX_CURVES')
-INDEX_BLOCKORDERS = os.getenv('ELASTIC_INDEX_BLOCKORDERS')
-ELASTIC_USERNAME = os.getenv('ELASTIC_USERNAME')
-ELASTIC_PASSWORD = os.getenv('ELASTIC_PASSWORD')
+ELECTRICITY_MARKETS_META_DATA = {
+        'RESULTS': {
+            'index': 'enexgr_electricity_market_results',
+            'base_urls': {
+                'DAM':   '20126/200106/%s_EL-DAM_Results_EN_v01.xlsx',
+                'LIDA1': '20126/235155/%s_EL-LIDA1_Results_EN_v01.xlsx',
+                'LIDA2': '20126/263261/%s_EL-LIDA2_Results_EN_v01.xlsx',
+                'LIDA3': '20126/263280/%s_EL-LIDA3_Results_EN_v01.xlsx',
+                'CRIDA1': '20126/853663/%s_EL-CRIDA1_Results_EN_v01.xlsx',
+                'CRIDA2': '20126/853680/%s_EL-CRIDA2_Results_EN_v01.xlsx',
+                'CRIDA3': '20126/853704/%s_EL-CRIDA3_Results_EN_v01.xlsx',
+            },
+        },
+        'CURVES': {
+            'index': 'enexgr_electricity_market_curves',
+            'base_urls': {
+                'DAM': '20126/200034/%s_EL-DAM_AggrCurves_EN_v01.xlsx',
+                'CRIDA1': '20126/853660/%s_EL-CRIDA1_AggrCurves_EN_v01.xlsx',
+                'CRIDA2': '20126/853695/%s_EL-CRIDA2_AggrCurves_EN_v01.xlsx',
+                'CRIDA3': '20126/853701/%s_EL-CRIDA3_AggrCurves_EN_v01.xlsx',
+            },
+        },
+        'BLOCK_ORDERS': {
+            'index': 'enexgr_electricity_market_block_orders',
+            'base_urls': {
+                'DAM': '20126/270103/%s_EL-DAM_BLKORDRs_EN_v01.xlsx',
+            },
+        },
+}
+
 BULK_ENDPOINT = '/_bulk'
 TZ = timezone('Europe/Athens')
 DELTA = timedelta(days=1)
 
 BASE_ENEX_URL = 'https://www.enexgroup.gr/documents'
-ELECTRICITY_MARKET_BASE_URLS = {
-    'RESULTS': {
-        'DAM':   '20126/200106/%s_EL-DAM_Results_EN_v01.xlsx',
-        'LIDA1': '20126/235155/%s_EL-LIDA1_Results_EN_v01.xlsx',
-        'LIDA2': '20126/263261/%s_EL-LIDA2_Results_EN_v01.xlsx',
-        'LIDA3': '20126/263280/%s_EL-LIDA3_Results_EN_v01.xlsx',
-        'CRIDA1': '20126/853663/%s_EL-CRIDA1_Results_EN_v01.xlsx',
-        'CRIDA2': '20126/853680/%s_EL-CRIDA2_Results_EN_v01.xlsx',
-        'CRIDA3': '20126/853704/%s_EL-CRIDA3_Results_EN_v01.xlsx',
-    },
-    'CURVES': {
-        'DAM': '20126/200034/%s_EL-DAM_AggrCurves_EN_v01.xlsx',
-        'CRIDA1': '20126/853660/%s_EL-CRIDA1_AggrCurves_EN_v01.xlsx',
-        'CRIDA2': '20126/853695/%s_EL-CRIDA2_AggrCurves_EN_v01.xlsx',
-        'CRIDA3': '20126/853701/%s_EL-CRIDA3_AggrCurves_EN_v01.xlsx',
-    },
-    'BLOCKORDERS': {
-        'DAM': '20126/270103/%s_EL-DAM_BLKORDRs_EN_v01.xlsx',
-    },
-}
 
 def post_to_elastic(data: str, url: str, elastic_info: dict) -> bool:
     '''
@@ -117,7 +122,7 @@ def convert_electricity_market_results_workbook(xlsx: str) -> str:
         pub_timestamp = datetime.fromisoformat(data['PUB_TIME'])
         data['PUB_TIME'] = TZ.localize(pub_timestamp).isoformat()
         ret += '{ "index": { "_index": "%s", "_id": "%s-%s-%s-%s-%s-%s-%s" } }' % (
-                INDEX_RESULTS,
+                ELECTRICITY_MARKETS_META_DATA['RESULTS']['index'],
                 data['TARGET'],
                 data['BIDDING_ZONE_DESCR'],
                 data['SIDE_DESCR'],
@@ -131,13 +136,13 @@ def convert_electricity_market_results_workbook(xlsx: str) -> str:
     if len(hourly_mcps) > 0:
         for mcp in hourly_mcps:
             ret += '{ "index": { "_index": "%s", "_id": "DAM-%s-MCP-HOURLY" } }' % (
-                    INDEX_RESULTS,
+                    ELECTRICITY_MARKETS_META_DATA['RESULTS']['index'],
                     mcp[1])
             ret += '\n{ "HOURLY_MCP": %s, "DELIVERY_MTU": "%s" }\n' % mcp
         daily_mcp = sum([x[0] for x in hourly_mcps])/len(hourly_mcps)
         dtime = min([x[1] for x in hourly_mcps])
         ret += '{ "index": { "_index": "%s", "_id": "DAM-%s-MCP-DAILY" } }' % (
-                INDEX_RESULTS,
+                ELECTRICITY_MARKETS_META_DATA['RESULTS']['index'],
                 dtime)
         ret += '\n{ "DAILY_MCP": %s, "DELIVERY_MTU": "%s" }\n' % (daily_mcp, dtime)
     return ret
@@ -173,7 +178,7 @@ def convert_electricity_curves_workbook(xlsx: str) -> str:
         pub_timestamp = datetime.fromisoformat(data['PUB_TIME'])
         data['PUB_TIME'] = TZ.localize(pub_timestamp).isoformat()
         ret += '{ "index": { "_index": "%s", "_id": "%s-%s-%s-%s-%s" } }' % (
-                INDEX_CURVES,
+                ELECTRICITY_MARKETS_META_DATA['CURVES']['index'],
                 data['TARGET'],
                 data['SIDE_DESCR'],
                 data['DDAY'],
@@ -210,7 +215,7 @@ def convert_electricity_blockorders_workbook(xlsx: str) -> str:
         pub_timestamp = datetime.fromisoformat(data['PUB_TIME'])
         data['PUB_TIME'] = TZ.localize(pub_timestamp).isoformat()
         ret += '{ "index": { "_index": "%s", "_id": "%s-%s-%s-%s-%s-%s" } }' % (
-                INDEX_BLOCKORDERS,
+                ELECTRICITY_MARKETS_META_DATA['BLOCK_ORDERS']['index'],
                 data['TARGET'],
                 data['BIDDING_ZONE_DESCR'],
                 data['SIDE_DESCR'],
@@ -295,8 +300,9 @@ def main():
     bulk_url = urljoin(elastic_info['host'], BULK_ENDPOINT)
     for delta in range(0, day_count):
         date = start_date + timedelta(days=delta)
-        for category, data in ELECTRICITY_MARKET_BASE_URLS.items():
-            for market, base_url in data.items():
+        for category, data in ELECTRICITY_MARKETS_META_DATA.items():
+            base_urls = data['base_urls']
+            for market, base_url in base_urls.items():
                 url = BASE_ENEX_URL + '/' + base_url % date.strftime('%Y%m%d')
                 # In 2021-09-22 LIDAs were renamed to CRIDAs. Don't try to fetch
                 # LIDAs after this time and CRIDAs before this time
@@ -312,7 +318,7 @@ def main():
                         data = convert_electricity_market_results_workbook(xlsx)
                     if category == 'CURVES':
                         data = convert_electricity_curves_workbook(xlsx)
-                    if category == 'BLOCKORDERS':
+                    if category == 'BLOCK_ORDERS':
                         data = convert_electricity_blockorders_workbook(xlsx)
                     logging.debug('Successful conversion of xlsx to json. Date: %s, category: %s, market: %s', date, category, market)
                     if post_to_elastic(data, bulk_url, elastic_info):
