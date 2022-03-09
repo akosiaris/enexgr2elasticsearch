@@ -56,7 +56,7 @@ def post_to_elastic(data: str, url: str, elastic_info: dict) -> bool:
     user = elastic_info.get('user')
     password = elastic_info.get('password')
     if user and password:
-        auth=HTTPBasicAuth(ELASTIC_USERNAME, ELASTIC_PASSWORD)
+        auth=HTTPBasicAuth(user, password)
     else:
         auth=None
 
