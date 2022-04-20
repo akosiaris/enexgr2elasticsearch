@@ -297,7 +297,7 @@ def main():
 
     parser = argparse.ArgumentParser(
             prog='enexgr.py',
-            description='Fetch DAM data and put into elastic')
+            description='Fetch enexgroup.gr data and put into Elasticsearch')
     parser.add_argument('-H',
                         '--host',
                         dest='host',
@@ -324,11 +324,11 @@ def main():
     parser.add_argument('--shards',
                         default=1,
                         dest='shards',
-                        help='Number of shards for each Elasticsearch index. Requires elasticsearch admin access')
+                        help='Number of shards for each Elasticsearch index. Defaults to 1. Requires elasticsearch admin access')
     parser.add_argument('--replicas',
                         default=0,
                         dest='replicas',
-                        help='Number of replicas for each Elasticsearch index. Requires elasticsearch admin access')
+                        help='Number of replicas for each Elasticsearch index. Defaults to 1. Requires elasticsearch admin access')
     parser.add_argument('-s',
                         '--start',
                         dest='start',
