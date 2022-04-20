@@ -1,5 +1,5 @@
 '''
-Populate 3 elasticsearch clusters with Greek Energy Exchange Group free data
+Populate elasticsearch with Greek Energy Exchange Group free data
 
 Copyright Alexandros Kosiaris 2022
 '''
@@ -95,7 +95,7 @@ def post_to_bulk_elastic(data: str, url: str, elastic_info: dict) -> bool:
     else:
         auth=None
 
-
+    logging.debug('POST data: ', data)
     response = requests.post(
         url,
         headers={
@@ -208,7 +208,7 @@ def convert_electricity_curves_workbook(xlsx: str) -> str:
     for row in rows:
         tmp = [x.value for x in row]
         data = dict(zip(header, tmp))
-        # TODO: Tell them they are inconsistent
+        # NOTE: Yes, the date format is inconsistent across time
         data['DELIVERY_MTU'] = data['DELIVERY_MTU'].replace('/', '-')
         data['PUB_TIME'] = data['PUB_TIME'].replace('/', '-')
         delivery_timestamp = datetime.fromisoformat(data['DELIVERY_MTU'])
