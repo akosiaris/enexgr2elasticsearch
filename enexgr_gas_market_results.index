@@ -14,7 +14,7 @@
       "Number of Trades": { "type": "double" },
       "Traded Quanity (No of Contracts)": { "type": "integer" },
       "Traded Volume (MWh)": { "type": "double" },
-      "VWAP ": { "type": "double" },
+      "VWAP": { "type": "double" },
       "Traded Volume Pre Agreed (MWh)": { "type": "double" },
       "VWAP MWh Pre Agreed": { "type": "double" },
       "HGSIDA": { "type": "double" },

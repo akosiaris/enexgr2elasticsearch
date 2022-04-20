@@ -463,7 +463,7 @@ def main():
                         data = convert_gas_workbook(xlsx)
                     logging.debug('Successful conversion of xlsx to json. Date: %s, category: %s, market: %s', date, category, market)
                     if post_to_bulk_elastic(data, bulk_url, elastic_info):
-                        logging.info('Posted to elasticsearch. Date: %s, category: %s, market: %s', date, category, market)
+                        logging.info('Posted to elasticsearch bulk API. Date: %s, category: %s, market: %s', date, category, market)
 
 
 if __name__ == '__main__':
