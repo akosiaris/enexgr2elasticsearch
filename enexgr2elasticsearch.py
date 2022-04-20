@@ -18,37 +18,53 @@ from requests.auth import HTTPBasicAuth
 
 VERSION = '0.1'
 ELECTRICITY_MARKETS_META_DATA = {
-        'RESULTS': {
-            'index': 'enexgr_electricity_market_results',
-            'base_urls': {
-                'DAM':   '20126/200106/%s_EL-DAM_Results_EN_v01.xlsx',
-                'LIDA1': '20126/235155/%s_EL-LIDA1_Results_EN_v01.xlsx',
-                'LIDA2': '20126/263261/%s_EL-LIDA2_Results_EN_v01.xlsx',
-                'LIDA3': '20126/263280/%s_EL-LIDA3_Results_EN_v01.xlsx',
-                'CRIDA1': '20126/853663/%s_EL-CRIDA1_Results_EN_v01.xlsx',
-                'CRIDA2': '20126/853680/%s_EL-CRIDA2_Results_EN_v01.xlsx',
-                'CRIDA3': '20126/853704/%s_EL-CRIDA3_Results_EN_v01.xlsx',
-            },
+    #TODO: Prefix categories with ELECTRICITY
+    'RESULTS': {
+        'index': 'enexgr_electricity_market_results',
+        'base_urls': {
+            'DAM':   '20126/200106/%s_EL-DAM_Results_EN_v01.xlsx',
+            'LIDA1': '20126/235155/%s_EL-LIDA1_Results_EN_v01.xlsx',
+            'LIDA2': '20126/263261/%s_EL-LIDA2_Results_EN_v01.xlsx',
+            'LIDA3': '20126/263280/%s_EL-LIDA3_Results_EN_v01.xlsx',
+            'CRIDA1': '20126/853663/%s_EL-CRIDA1_Results_EN_v01.xlsx',
+            'CRIDA2': '20126/853680/%s_EL-CRIDA2_Results_EN_v01.xlsx',
+            'CRIDA3': '20126/853704/%s_EL-CRIDA3_Results_EN_v01.xlsx',
         },
-        'CURVES': {
-            'index': 'enexgr_electricity_market_curves',
-            'base_urls': {
-                'DAM': '20126/200034/%s_EL-DAM_AggrCurves_EN_v01.xlsx',
-                'CRIDA1': '20126/853660/%s_EL-CRIDA1_AggrCurves_EN_v01.xlsx',
-                'CRIDA2': '20126/853695/%s_EL-CRIDA2_AggrCurves_EN_v01.xlsx',
-                'CRIDA3': '20126/853701/%s_EL-CRIDA3_AggrCurves_EN_v01.xlsx',
-            },
+    },
+    'CURVES': {
+        'index': 'enexgr_electricity_market_curves',
+        'base_urls': {
+            'DAM': '20126/200034/%s_EL-DAM_AggrCurves_EN_v01.xlsx',
+            'CRIDA1': '20126/853660/%s_EL-CRIDA1_AggrCurves_EN_v01.xlsx',
+            'CRIDA2': '20126/853695/%s_EL-CRIDA2_AggrCurves_EN_v01.xlsx',
+            'CRIDA3': '20126/853701/%s_EL-CRIDA3_AggrCurves_EN_v01.xlsx',
         },
-        'BLOCK_ORDERS': {
-            'index': 'enexgr_electricity_market_block_orders',
-            'base_urls': {
-                'DAM': '20126/270103/%s_EL-DAM_BLKORDRs_EN_v01.xlsx',
-            },
+    },
+    'BLOCK_ORDERS': {
+        'index': 'enexgr_electricity_market_block_orders',
+        'base_urls': {
+            'DAM': '20126/270103/%s_EL-DAM_BLKORDRs_EN_v01.xlsx',
         },
-        'HOURLY_DAILY_MCPS': {
-            # The hourly_daily_mcp index is a derivative one, so we only have a name
-            'index': 'enexgr_electricity_market_hourly_daily_mcps',
+    },
+    'HOURLY_DAILY_MCPS': {
+        # The hourly_daily_mcp index is a derivative one, so we only have a name
+        'index': 'enexgr_electricity_market_hourly_daily_mcps',
+    },
+}
+
+GAS_MARKETS_META_DATA = {
+    'NGAS_Results': {
+        'index': 'enexgr_gas_market_results',
+        'base_urls': {
+            'NGAS_DOL': '20126/997118/%s_NGAS_DOL_EN_v01.xlsx',
         },
+    },
+    'Auctions_Details': {
+        'index': 'enexgr_gas_market_details',
+    },
+    'Announcements': {
+        'index': 'enexgr_gas_market_announcements',
+    },
 }
 
 BULK_ENDPOINT = '/_bulk'
@@ -95,7 +111,7 @@ def post_to_bulk_elastic(data: str, url: str, elastic_info: dict) -> bool:
     else:
         auth=None
 
-    logging.debug('POST data: ', data)
+    logging.debug('POST data: %s', data)
     response = requests.post(
         url,
         headers={
@@ -264,19 +280,55 @@ def convert_electricity_blockorders_workbook(xlsx: str) -> str:
     return ret
 
 
+def convert_gas_workbook(xlsx: str) -> str:
+    '''
+    Convert the data from an enexgroup NGAS DOL result xlsx file to a
+    ready for elasticsearch bulk API POST string
+    '''
+
+    try:
+        workbook = load_workbook(
+                filename=xlsx,
+                read_only=False)
+    except Exception as exc:
+        logging.error(xlsx)
+        raise exc
+
+    ret = ''
+    for worksheet in workbook.worksheets:
+        rows = worksheet.rows
+        tmp = next(rows)
+        # The if is there cause of empty columns with no name
+        header = [x.value.strip() for x in tmp if x.value]
+
+        for row in rows:
+            tmp = [x.value for x in row if x.value]
+            data = dict(zip(header, tmp))
+            data['Trading Date'] = TZ.localize(data['Trading Date']).isoformat()
+            ret += '{ "index": { "_index": "%s", "_id": "%s-%s-%s" } }' % (
+                    GAS_MARKETS_META_DATA[worksheet.title]['index'],
+                    data['Trading Date'],
+                    data['Trading Series'],
+                    data['Contract'])
+            ret += '\n' + json.dumps(data) + '\n'
+    return ret
+
+
 def create_elasticsearch_indices(elastic_admin_info: dict, shards: int,
         replicas: int) -> bool:
     '''
     Create the elasticsearch indices alongside mappings
     '''
 
-    indices = map(lambda x: x[1]['index'], ELECTRICITY_MARKETS_META_DATA.items())
+    electricity_indices = map(lambda x: x[1]['index'], ELECTRICITY_MARKETS_META_DATA.items())
+    gas_indices = map(lambda x: x[1]['index'], GAS_MARKETS_META_DATA.items())
     settings = {
         "settings": {
             "number_of_shards": shards,
             "number_of_replicas": replicas,
         }
     }
+    indices = list(electricity_indices) + list(gas_indices)
     for idx in indices:
         with open('%s.index' % idx, 'r') as fil:
             # Load the mappings
@@ -379,11 +431,14 @@ def main():
     bulk_url = urljoin(elastic_info['host'], BULK_ENDPOINT)
     for delta in range(0, day_count):
         date = start_date + timedelta(days=delta)
-        for category, data in ELECTRICITY_MARKETS_META_DATA.items():
+        markets_meta_data = {}
+        markets_meta_data.update(ELECTRICITY_MARKETS_META_DATA)
+        markets_meta_data.update(GAS_MARKETS_META_DATA)
+        for category, data in markets_meta_data.items():
             try:
                 base_urls = data['base_urls']
             except KeyError:
-                # We don't have base_urls for this index, skip
+                logging.debug('No base_urls for %s, skip', category)
                 continue
             for market, base_url in base_urls.items():
                 url = BASE_ENEX_URL + '/' + base_url % date.strftime('%Y%m%d')
@@ -404,6 +459,8 @@ def main():
                         data = convert_electricity_curves_workbook(xlsx)
                     if category == 'BLOCK_ORDERS':
                         data = convert_electricity_blockorders_workbook(xlsx)
+                    if category == 'NGAS_Results':
+                        data = convert_gas_workbook(xlsx)
                     logging.debug('Successful conversion of xlsx to json. Date: %s, category: %s, market: %s', date, category, market)
                     if post_to_bulk_elastic(data, bulk_url, elastic_info):
                         logging.info('Posted to elasticsearch. Date: %s, category: %s, market: %s', date, category, market)

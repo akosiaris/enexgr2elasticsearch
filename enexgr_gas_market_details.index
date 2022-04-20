@@ -1,0 +1,12 @@
+{
+  "mappings": {
+    "properties": {
+      "Trading Date": { "type": "date" },
+      "Trading Series": { "type": "keyword" },
+      "Contract": { "type": "keyword" },
+      "Number Of Auctions": { "type": "integer" },
+      "Auction Total Traded Quantity": { "type": "double" },
+      "Auction Total Traded Volume (MWh)": { "type": "double" }
+    }
+  }
+}

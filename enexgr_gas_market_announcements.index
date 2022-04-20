@@ -1,0 +1,8 @@
+{
+  "mappings": {
+    "properties": {
+      "Trading Date": { "type": "date" },
+      "Announcement": { "type": "text" }
+    }
+  }
+}

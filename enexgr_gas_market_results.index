@@ -1,0 +1,26 @@
+{
+  "mappings": {
+    "properties": {
+      "Trading Date": { "type": "date" },
+      "Trading Series": { "type": "keyword" },
+      "Contract": { "type": "keyword" },
+      "Start Price": { "type": "double" },
+      "Max Price": { "type": "double" },
+      "Min Price": { "type": "double" },
+      "Last Price": { "type": "double" },
+      "Closing Price": { "type": "double" },
+      "Previous Closing Price": { "type": "double" },
+      "Number of Orders": { "type": "double" },
+      "Number of Trades": { "type": "double" },
+      "Traded Quanity (No of Contracts)": { "type": "integer" },
+      "Traded Volume (MWh)": { "type": "double" },
+      "VWAP ": { "type": "double" },
+      "Traded Volume Pre Agreed (MWh)": { "type": "double" },
+      "VWAP MWh Pre Agreed": { "type": "double" },
+      "HGSIDA": { "type": "double" },
+      "HGSIWD": { "type": "double" },
+      "HGMBI": { "type": "double" },
+      "HGMSI": { "type": "double" }
+    }
+  }
+}
