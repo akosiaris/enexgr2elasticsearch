@@ -380,7 +380,7 @@ def main():
     parser.add_argument('--replicas',
                         default=0,
                         dest='replicas',
-                        help='Number of replicas for each Elasticsearch index. Defaults to 1. Requires elasticsearch admin access')
+                        help='Number of replicas for each Elasticsearch index. Defaults to 0. Requires elasticsearch admin access')
     parser.add_argument('-s',
                         '--start',
                         dest='start',
