@@ -8,6 +8,7 @@ import argparse
 import io
 import json
 import logging
+import os
 from datetime import datetime, timedelta
 from urllib.parse import urljoin
 
@@ -342,6 +343,30 @@ def create_elasticsearch_indices(elastic_admin_info: dict, shards: int,
                 return False
     return True
 
+
+def get_xlsx(cache: str, filepath: str):
+    '''
+    Get xlsx from cache or fetch from internet
+    '''
+    url = BASE_ENEX_URL + '/' + filepath
+    _, filename = os.path.split(filepath)
+    if cache:
+        cache_path = os.path.join(args.cache, filename)
+        try:
+            tmp = open(cache_path, 'rb').read()
+            logging.debug('Successful read for cache: %s', cache_path)
+            return io.BytesIO(tmp)
+        except FileNotFoundError:
+            logging.debug('Not found in cache, downloading: ', filename)
+    tmp = fetch_new_xlsx(url)
+    if tmp:
+        logging.debug('Successful download: %s', filename)
+        # Write to cache
+        with open(cache_path, 'wb') as c:
+            c.write(tmp)
+        return io.BytesIO(tmp)
+    return None
+
 def main():
     '''
     Main function
@@ -391,6 +416,10 @@ def main():
                         dest='end',
                         default=(datetime.now().date()+DELTA).strftime('%Y-%m-%d'),
                         help='The end date. YYYY-MM-DD format')
+    parser.add_argument('-c',
+                        '--cache',
+                        dest='cache',
+                        help='Directory to be used as R/W cache for .xlsx files')
     parser.add_argument('-v',
                         '--verbose',
                         action='count',
@@ -441,17 +470,17 @@ def main():
                 logging.debug('No base_urls for %s, skip', category)
                 continue
             for market, base_url in base_urls.items():
-                url = BASE_ENEX_URL + '/' + base_url % date.strftime('%Y%m%d')
                 # In 2021-09-22 LIDAs were renamed to CRIDAs. Don't try to fetch
                 # LIDAs after this time and CRIDAs before this time
                 if date > datetime(2021, 9, 21) and market.startswith('LIDA'):
                     continue
                 if date <= datetime(2021, 9, 21) and market.startswith('CRIDA'):
                     continue
-                tmp = fetch_new_xlsx(url)
-                if tmp:
+
+                filepath = base_url % date.strftime('%Y%m%d')
+                xlsx = get_xlsx(args.cache, filepath)
+                if xlsx:
                     logging.debug('Successful fetch. Date: %s, category: %s, market: %s', date, category, market)
-                    xlsx = io.BytesIO(tmp)
                     if category == 'RESULTS':
                         data, hourly_mcps = convert_electricity_market_results_workbook(xlsx)
                         data = data + calculate_electricity_hourly_daily_mcps(hourly_mcps)
