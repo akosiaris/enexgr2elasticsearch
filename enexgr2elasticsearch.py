@@ -350,8 +350,9 @@ def get_xlsx(cache: str, filepath: str):
     '''
     url = BASE_ENEX_URL + '/' + filepath
     _, filename = os.path.split(filepath)
+    cache_path = None
     if cache:
-        cache_path = os.path.join(args.cache, filename)
+        cache_path = os.path.join(cache, filename)
         try:
             tmp = open(cache_path, 'rb').read()
             logger.debug('Successful read for cache: %s', cache_path)
