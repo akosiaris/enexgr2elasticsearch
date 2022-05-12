@@ -5,6 +5,7 @@ Copyright Alexandros Kosiaris 2022
 '''
 
 import argparse
+import ecs_logging
 import io
 import json
 import logging
@@ -429,6 +430,11 @@ def main():
                         default=0,
                         dest='verbose',
                         help='Increase verbosity. May be specified multiple times')
+    parser.add_argument('--ecs-logging',
+                        action='store_true',
+                        default=False,
+                        dest='ecs_logging',
+                        help='Use Elastic Common Schema logging')
     parser.add_argument('--version',
                         action='version',
                         version='%(prog)s ' + VERSION)
@@ -437,7 +443,11 @@ def main():
     if args.verbose == 1:
         logger.setLevel(logging.INFO)
     if args.verbose > 1:
-        logging.basicConfig(level=logging.DEBUG)
+        logger.setLevel(logging.DEBUG)
+    if args.ecs_logging:
+        handler = logging.StreamHandler()
+        handler.setFormatter(ecs_logging.StdlibFormatter())
+        logger.addHandler(handler)
 
     elastic_info = dict(
             host = args.host,
