@@ -94,10 +94,10 @@ def put_to_elastic(data: str, url: str, elastic_info: dict) -> bool:
         data=data.encode('utf-8'),
         auth=auth)
     if response.status_code != 200:
-        logging.error('Error: %s, %s', response.status_code, response.content.decode())
+        logger.error('Error: %s, %s', response.status_code, response.content.decode())
         return False
 
-    logging.debug('Data PUT successfully to elasticsearch, size: %s', len(data))
+    logger.debug('Data PUT successfully to elasticsearch, size: %s', len(data))
     return True
 
 
@@ -112,7 +112,7 @@ def post_to_bulk_elastic(data: str, url: str, elastic_info: dict) -> bool:
     else:
         auth=None
 
-    logging.debug('POST data: %s', data)
+    logger.debug('POST data: %s', data)
     response = requests.post(
         url,
         headers={
@@ -121,10 +121,10 @@ def post_to_bulk_elastic(data: str, url: str, elastic_info: dict) -> bool:
         data=data.encode('utf-8'),
         auth=auth)
     if response.status_code != 200:
-        logging.error('Error: %s, %s', response.status_code, response.content.decode())
+        logger.error('Error: %s, %s', response.status_code, response.content.decode())
         return False
 
-    logging.debug('Bulk data indexed succesfully, size: %s', len(data))
+    logger.debug('Bulk data indexed succesfully, size: %s', len(data))
     return True
 
 
@@ -152,7 +152,7 @@ def convert_electricity_market_results_workbook(xlsx: str) -> tuple:
                 filename=xlsx,
                 read_only=False)
     except Exception as exc:
-        logging.error(xlsx)
+        logger.error(xlsx)
         raise exc
     rows = workbook.active.rows
 
@@ -214,7 +214,7 @@ def convert_electricity_curves_workbook(xlsx: str) -> str:
                 filename=xlsx,
                 read_only=False)
     except Exception as exc:
-        logging.error(xlsx)
+        logger.error(xlsx)
         raise exc
     rows = workbook.active.rows
 
@@ -254,7 +254,7 @@ def convert_electricity_blockorders_workbook(xlsx: str) -> str:
                 filename=xlsx,
                 read_only=False)
     except Exception as exc:
-        logging.error(xlsx)
+        logger.error(xlsx)
         raise exc
     rows = workbook.active.rows
 
@@ -292,7 +292,7 @@ def convert_gas_workbook(xlsx: str) -> str:
                 filename=xlsx,
                 read_only=False)
     except Exception as exc:
-        logging.error(xlsx)
+        logger.error(xlsx)
         raise exc
 
     ret = ''
@@ -337,9 +337,9 @@ def create_elasticsearch_indices(elastic_admin_info: dict, shards: int,
             data.update(settings)
             url = urljoin(elastic_admin_info['host'], idx)
             if put_to_elastic(json.dumps(data), url, elastic_admin_info):
-                logging.debug('index: %s created succesfully', idx)
+                logger.debug('index: %s created succesfully', idx)
             else:
-                logging.warning('index creation failed: %s', idx)
+                logger.warning('index creation failed: %s', idx)
                 return False
     return True
 
@@ -354,16 +354,17 @@ def get_xlsx(cache: str, filepath: str):
         cache_path = os.path.join(args.cache, filename)
         try:
             tmp = open(cache_path, 'rb').read()
-            logging.debug('Successful read for cache: %s', cache_path)
+            logger.debug('Successful read for cache: %s', cache_path)
             return io.BytesIO(tmp)
         except FileNotFoundError:
-            logging.debug('Not found in cache, downloading: ', filename)
+            logger.debug('Not found in cache, downloading: %s', filename)
     tmp = fetch_new_xlsx(url)
     if tmp:
-        logging.debug('Successful download: %s', filename)
-        # Write to cache
-        with open(cache_path, 'wb') as c:
-            c.write(tmp)
+        logger.debug('Successful download: %s', filename)
+        # Write to cache if enabled
+        if cache_path:
+            with open(cache_path, 'wb') as c:
+                c.write(tmp)
         return io.BytesIO(tmp)
     return None
 
@@ -371,6 +372,7 @@ def main():
     '''
     Main function
     '''
+    global logger
 
     parser = argparse.ArgumentParser(
             prog='enexgr.py',
@@ -430,8 +432,9 @@ def main():
                         action='version',
                         version='%(prog)s ' + VERSION)
     args = parser.parse_args()
+    logger = logging.getLogger(__name__)
     if args.verbose == 1:
-        logging.basicConfig(level=logging.INFO)
+        logger.setLevel(logging.INFO)
     if args.verbose > 1:
         logging.basicConfig(level=logging.DEBUG)
 
@@ -449,7 +452,7 @@ def main():
             elastic_admin_info,
             args.shards,
             args.replicas):
-            logging.critical('Failed to create indices despite being asked to')
+            logger.critical('Failed to create indices despite being asked to')
             return 1
 
     start_date = datetime.strptime(args.start, '%Y-%m-%d')
@@ -467,7 +470,7 @@ def main():
             try:
                 base_urls = data['base_urls']
             except KeyError:
-                logging.debug('No base_urls for %s, skip', category)
+                logger.debug('No base_urls for %s, skip', category)
                 continue
             for market, base_url in base_urls.items():
                 # In 2021-09-22 LIDAs were renamed to CRIDAs. Don't try to fetch
@@ -480,7 +483,7 @@ def main():
                 filepath = base_url % date.strftime('%Y%m%d')
                 xlsx = get_xlsx(args.cache, filepath)
                 if xlsx:
-                    logging.debug('Successful fetch. Date: %s, category: %s, market: %s', date, category, market)
+                    logger.debug('Successful fetch. Date: %s, category: %s, market: %s', date, category, market)
                     if category == 'RESULTS':
                         data, hourly_mcps = convert_electricity_market_results_workbook(xlsx)
                         data = data + calculate_electricity_hourly_daily_mcps(hourly_mcps)
@@ -490,10 +493,11 @@ def main():
                         data = convert_electricity_blockorders_workbook(xlsx)
                     if category == 'NGAS_Results':
                         data = convert_gas_workbook(xlsx)
-                    logging.debug('Successful conversion of xlsx to json. Date: %s, category: %s, market: %s', date, category, market)
+                    logger.debug('Successful conversion of xlsx to json. Date: %s, category: %s, market: %s', date, category, market)
                     if post_to_bulk_elastic(data, bulk_url, elastic_info):
-                        logging.info('Posted to elasticsearch bulk API. Date: %s, category: %s, market: %s', date, category, market)
+                        logger.info('Posted to elasticsearch bulk API. Date: %s, category: %s, market: %s', date, category, market)
 
 
 if __name__ == '__main__':
+    logger = None
     main()
