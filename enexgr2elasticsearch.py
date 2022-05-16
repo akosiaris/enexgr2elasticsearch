@@ -10,6 +10,7 @@ import io
 import json
 import logging
 import os
+import warnings
 from datetime import datetime, timedelta
 from urllib.parse import urljoin
 
@@ -510,5 +511,8 @@ def main():
 
 
 if __name__ == '__main__':
+    # TODO: Suppress openpyxml warnings (alongside all warnings, will do for
+    # now)
+    warnings.simplefilter('ignore')
     logger = None
     main()
