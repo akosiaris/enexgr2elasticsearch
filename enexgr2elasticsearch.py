@@ -5,7 +5,6 @@ Copyright Alexandros Kosiaris 2022
 '''
 
 import argparse
-import ecs_logging
 import io
 import json
 import logging
@@ -14,6 +13,7 @@ import warnings
 from datetime import datetime, timedelta
 from urllib.parse import urljoin
 
+import ecs_logging
 import requests
 from openpyxl import load_workbook
 from pytz import timezone
@@ -21,7 +21,6 @@ from requests.auth import HTTPBasicAuth
 
 VERSION = '0.1'
 ELECTRICITY_MARKETS_META_DATA = {
-    #TODO: Prefix categories with ELECTRICITY
     'RESULTS': {
         'index': 'enexgr_electricity_market_results',
         'base_urls': {
@@ -403,14 +402,18 @@ def main():
                         action='store_true',
                         dest='create_indices',
                         help='Create Elasticsearch indices. Requires elasticsearch admin access')
-    parser.add_argument('--shards',
+    parser.add_argument('--create-indices-shards',
                         default=1,
                         dest='shards',
-                        help='Number of shards for each Elasticsearch index. Defaults to 1. Requires elasticsearch admin access')
-    parser.add_argument('--replicas',
+                        help='''Number of shards for each newly created
+                        Elasticsearch index. Used only when creating indices.
+                        Defaults to 1. Requires elasticsearch admin access''')
+    parser.add_argument('--create-indices-replicas',
                         default=0,
                         dest='replicas',
-                        help='Number of replicas for each Elasticsearch index. Defaults to 0. Requires elasticsearch admin access')
+                        help='''Number of replicas for each newly created
+                        Elasticsearch index. Used only when creating indices.
+                        Defaults to 0. Requires elasticsearch admin access''')
     parser.add_argument('-s',
                         '--start',
                         dest='start',
@@ -495,7 +498,8 @@ def main():
                 filepath = base_url % date.strftime('%Y%m%d')
                 xlsx = get_xlsx(args.cache, filepath)
                 if xlsx:
-                    logger.debug('Successful fetch. Date: %s, category: %s, market: %s', date, category, market)
+                    logger.debug('Successful fetch. Date: %s, category: %s, market: %s',
+                            date, category, market)
                     if category == 'RESULTS':
                         data, hourly_mcps = convert_electricity_market_results_workbook(xlsx)
                         data = data + calculate_electricity_hourly_daily_mcps(hourly_mcps)
@@ -505,9 +509,11 @@ def main():
                         data = convert_electricity_blockorders_workbook(xlsx)
                     if category == 'NGAS_Results':
                         data = convert_gas_workbook(xlsx)
-                    logger.debug('Successful conversion of xlsx to json. Date: %s, category: %s, market: %s', date, category, market)
+                    logger.debug('Conversion of xlsx to json. Date: %s, category: %s, market: %s',
+                            date, category, market)
                     if post_to_bulk_elastic(data, bulk_url, elastic_info):
-                        logger.info('Posted to elasticsearch bulk API. Date: %s, category: %s, market: %s', date, category, market)
+                        logger.info('Posted to bulk API. Date: %s, category: %s, market: %s',
+                            date, category, market)
 
 
 if __name__ == '__main__':
