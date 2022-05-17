@@ -443,15 +443,17 @@ def main():
                         action='version',
                         version='%(prog)s ' + VERSION)
     args = parser.parse_args()
+    # Let's setup default logging.
     logger = logging.getLogger(__name__)
+    handler = logging.StreamHandler()
+    handler.setFormatter(logging.Formatter(fmt='%(levelname)s:%(name)s:%(message)s'))
     if args.verbose == 1:
         logger.setLevel(logging.INFO)
     if args.verbose > 1:
         logger.setLevel(logging.DEBUG)
     if args.ecs_logging:
-        handler = logging.StreamHandler()
         handler.setFormatter(ecs_logging.StdlibFormatter())
-        logger.addHandler(handler)
+    logger.addHandler(handler)
 
     elastic_info = dict(
             host = args.host,
