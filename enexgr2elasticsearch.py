@@ -338,7 +338,7 @@ def create_elasticsearch_indices(elastic_admin_info: dict, shards: int,
             data.update(settings)
             url = urljoin(elastic_admin_info['host'], idx)
             if put_to_elastic(json.dumps(data), url, elastic_admin_info):
-                logger.debug('index: %s created succesfully', idx)
+                logger.info('index: %s created succesfully', idx)
             else:
                 logger.warning('index creation failed: %s', idx)
                 return False
@@ -356,13 +356,13 @@ def get_xlsx(cache: str, filepath: str):
         cache_path = os.path.join(cache, filename)
         try:
             tmp = open(cache_path, 'rb').read()
-            logger.debug('Successful read for cache: %s', cache_path)
+            logger.info('Cache-hit: %s', cache_path)
             return io.BytesIO(tmp)
         except FileNotFoundError:
-            logger.debug('Not found in cache, downloading: %s', filename)
+            logger.info('Cache-miss: %s', filename)
     tmp = fetch_new_xlsx(url)
     if tmp:
-        logger.debug('Successful download: %s', filename)
+        logger.info('Successful download: %s', filename)
         # Write to cache if enabled
         if cache_path:
             with open(cache_path, 'wb') as c:
@@ -498,7 +498,7 @@ def main():
                 filepath = base_url % date.strftime('%Y%m%d')
                 xlsx = get_xlsx(args.cache, filepath)
                 if xlsx:
-                    logger.debug('Successful fetch. Date: %s, category: %s, market: %s',
+                    logger.info('Successful fetch. Date: %s, category: %s, market: %s',
                             date, category, market)
                     if category == 'RESULTS':
                         data, hourly_mcps = convert_electricity_market_results_workbook(xlsx)
@@ -509,7 +509,7 @@ def main():
                         data = convert_electricity_blockorders_workbook(xlsx)
                     if category == 'NGAS_Results':
                         data = convert_gas_workbook(xlsx)
-                    logger.debug('Conversion of xlsx to json. Date: %s, category: %s, market: %s',
+                    logger.info('xlsx to json done. Date: %s, category: %s, market: %s',
                             date, category, market)
                     if post_to_bulk_elastic(data, bulk_url, elastic_info):
                         logger.info('Posted to bulk API. Date: %s, category: %s, market: %s',
