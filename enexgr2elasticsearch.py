@@ -15,7 +15,7 @@ from urllib.parse import urljoin
 
 import ecs_logging
 import requests
-from openpyxl import load_workbook
+from openpyxl import load_workbook as _load_workbook
 from pytz import timezone
 from requests.auth import HTTPBasicAuth
 
@@ -148,13 +148,7 @@ def convert_electricity_market_results_workbook(xlsx: str) -> tuple:
     elasticsearch bulk API POST string
     '''
 
-    try:
-        workbook = load_workbook(
-                filename=xlsx,
-                read_only=False)
-    except Exception as exc:
-        logger.error(xlsx)
-        raise exc
+    workbook = load_workbook(xlsx)
     rows = workbook.active.rows
 
     tmp = next(rows)
@@ -210,13 +204,7 @@ def convert_electricity_curves_workbook(xlsx: str) -> str:
     ready for elasticsearch bulk API POST string
     '''
 
-    try:
-        workbook = load_workbook(
-                filename=xlsx,
-                read_only=False)
-    except Exception as exc:
-        logger.error(xlsx)
-        raise exc
+    workbook = load_workbook(xlsx)
     rows = workbook.active.rows
 
     tmp = next(rows)
@@ -250,13 +238,7 @@ def convert_electricity_blockorders_workbook(xlsx: str) -> str:
     ready for elasticsearch bulk API POST string
     '''
 
-    try:
-        workbook = load_workbook(
-                filename=xlsx,
-                read_only=False)
-    except Exception as exc:
-        logger.error(xlsx)
-        raise exc
+    workbook = load_workbook(xlsx)
     rows = workbook.active.rows
 
     tmp = next(rows)
@@ -288,13 +270,7 @@ def convert_gas_workbook(xlsx: str) -> str:
     ready for elasticsearch bulk API POST string
     '''
 
-    try:
-        workbook = load_workbook(
-                filename=xlsx,
-                read_only=False)
-    except Exception as exc:
-        logger.error(xlsx)
-        raise exc
+    workbook = load_workbook(xlsx)
 
     ret = ''
     for worksheet in workbook.worksheets:
@@ -369,6 +345,24 @@ def get_xlsx(cache: str, filepath: str):
                 c.write(tmp)
         return io.BytesIO(tmp)
     return None
+
+
+def load_workbook(xlsx: str):
+    '''
+    Overriding load_workbook to catch exceptions and silence warnings
+    '''
+
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            workbook = _load_workbook(
+                    filename=xlsx,
+                    read_only=False)
+    except Exception as exc:
+        logger.error(xlsx)
+        raise exc
+    return workbook
+
 
 def main():
     '''
@@ -519,8 +513,5 @@ def main():
 
 
 if __name__ == '__main__':
-    # TODO: Suppress openpyxml warnings (alongside all warnings, will do for
-    # now)
-    warnings.simplefilter('ignore')
     logger = None
     main()
