@@ -321,7 +321,7 @@ def create_elasticsearch_indices(elastic_admin_info: dict, shards: int,
     return True
 
 
-def get_xlsx(cache: str, filepath: str):
+def get_xlsx(cache: str, filepath: str) -> io.BytesIO:
     '''
     Get xlsx from cache or fetch from internet
     '''
@@ -341,8 +341,8 @@ def get_xlsx(cache: str, filepath: str):
         logger.info('Successful download: %s', filename)
         # Write to cache if enabled
         if cache_path:
-            with open(cache_path, 'wb') as c:
-                c.write(tmp)
+            with open(cache_path, 'wb') as cache_file:
+                cache_file.write(tmp)
         return io.BytesIO(tmp)
     return None
 
