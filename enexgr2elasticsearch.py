@@ -86,17 +86,20 @@ def put_to_elastic(data: str, url: str, elastic_info: dict) -> bool:
     else:
         auth=None
 
-
-    response = requests.put(
-        url,
-        headers={
-            'Content-Type': 'application/json',
-        },
-        data=data.encode('utf-8'),
-        auth=auth)
-    if response.status_code != 200:
-        logger.error('Error: %s, %s', response.status_code, response.content.decode())
-        return False
+    logger.debug('PUT data: %s', data)
+    try:
+        response = requests.put(
+            url,
+            headers={
+                'Content-Type': 'application/json',
+            },
+            data=data.encode('utf-8'),
+            auth=auth)
+        if response.status_code != 200:
+            logger.error('Error: %s, %s', response.status_code, response.content.decode())
+            return False
+    except requests.exceptions.ConnectionError as exc:
+        logger.error('Connection failed: %s', exc)
 
     logger.debug('Data PUT successfully to elasticsearch, size: %s', len(data))
     return True
@@ -114,16 +117,19 @@ def post_to_bulk_elastic(data: str, url: str, elastic_info: dict) -> bool:
         auth=None
 
     logger.debug('POST data: %s', data)
-    response = requests.post(
-        url,
-        headers={
-            'Content-Type': 'application/x-ndjson',
-        },
-        data=data.encode('utf-8'),
-        auth=auth)
-    if response.status_code != 200:
-        logger.error('Error: %s, %s', response.status_code, response.content.decode())
-        return False
+    try:
+        response = requests.post(
+            url,
+            headers={
+                'Content-Type': 'application/x-ndjson',
+            },
+            data=data.encode('utf-8'),
+            auth=auth)
+        if response.status_code != 200:
+            logger.error('Error: %s, %s', response.status_code, response.content.decode())
+            return False
+    except requests.exceptions.ConnectionError as exc:
+        logger.error('Connection failed: %s', exc)
 
     logger.debug('Bulk data indexed succesfully, size: %s', len(data))
     return True
