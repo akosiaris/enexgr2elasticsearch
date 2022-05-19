@@ -332,7 +332,7 @@ def get_xlsx(cache: str, filepath: str) -> io.BytesIO:
         cache_path = os.path.join(cache, filename)
         try:
             tmp = open(cache_path, 'rb').read()
-            logger.info('Cache-hit: %s', cache_path)
+            logger.info('Cache-hit: %s', filename)
             return io.BytesIO(tmp)
         except FileNotFoundError:
             logger.info('Cache-miss: %s', filename)
