@@ -445,7 +445,7 @@ def main():
     args = parser.parse_args()
     # Let's setup default logging.
     logger = logging.getLogger(__name__)
-    handler = logging.StreamHandler()
+    handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(logging.Formatter(fmt='%(levelname)s:%(name)s:%(message)s'))
     if args.verbose == 1:
         logger.setLevel(logging.INFO)
