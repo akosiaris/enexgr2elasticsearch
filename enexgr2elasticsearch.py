@@ -9,12 +9,15 @@ import io
 import json
 import logging
 import os
+import sys
 import warnings
 from datetime import datetime, timedelta
+from logging.handlers import HTTPHandler
 from urllib.parse import urljoin
 
 import ecs_logging
 import requests
+import structlog
 from openpyxl import load_workbook as _load_workbook
 from pytz import timezone
 from requests.auth import HTTPBasicAuth
@@ -86,7 +89,7 @@ def put_to_elastic(data: str, url: str, elastic_info: dict) -> bool:
     else:
         auth=None
 
-    logger.debug('PUT data: %s', data)
+    logger.debug('Data to be PUT to elasticsearch', data=data)
     try:
         response = requests.put(
             url,
@@ -96,12 +99,14 @@ def put_to_elastic(data: str, url: str, elastic_info: dict) -> bool:
             data=data.encode('utf-8'),
             auth=auth)
         if response.status_code != 200:
-            logger.error('Error: %s, %s', response.status_code, response.content.decode())
+            logger.error('Elasticsearch error response',
+                    status_code=response.status_code,
+                    body=response.content.decode())
             return False
     except requests.exceptions.ConnectionError as exc:
-        logger.error('Connection failed: %s', exc)
+        logger.error('Connection failed', exc_info=exc)
 
-    logger.debug('Data PUT successfully to elasticsearch, size: %s', len(data))
+    logger.debug('Data PUT successfully to elasticsearch', size=len(data))
     return True
 
 
@@ -116,7 +121,7 @@ def post_to_bulk_elastic(data: str, url: str, elastic_info: dict) -> bool:
     else:
         auth=None
 
-    logger.debug('POST data: %s', data)
+    logger.debug('Data to be POSTed to elasticsearch', data=data)
     try:
         response = requests.post(
             url,
@@ -126,12 +131,14 @@ def post_to_bulk_elastic(data: str, url: str, elastic_info: dict) -> bool:
             data=data.encode('utf-8'),
             auth=auth)
         if response.status_code != 200:
-            logger.error('Error: %s, %s', response.status_code, response.content.decode())
+            logger.error('Elasticsearch error response',
+                    status_code=response.status_code,
+                    body=response.content.decode())
             return False
     except requests.exceptions.ConnectionError as exc:
-        logger.error('Connection failed: %s', exc)
+        logger.error('Connection failed', exc_info=exc)
 
-    logger.debug('Bulk data indexed succesfully, size: %s', len(data))
+    logger.debug('Bulk data indexed succesfully', size=len(data))
     return True
 
 
@@ -320,9 +327,9 @@ def create_elasticsearch_indices(elastic_admin_info: dict, shards: int,
             data.update(settings)
             url = urljoin(elastic_admin_info['host'], idx)
             if put_to_elastic(json.dumps(data), url, elastic_admin_info):
-                logger.info('index: %s created succesfully', idx)
+                logger.info('index created succesfully', index=idx)
             else:
-                logger.warning('index creation failed: %s', idx)
+                logger.warning('index creation failed', index=idx)
                 return False
     return True
 
@@ -338,13 +345,13 @@ def get_xlsx(cache: str, filepath: str) -> io.BytesIO:
         cache_path = os.path.join(cache, filename)
         try:
             tmp = open(cache_path, 'rb').read()
-            logger.info('Cache-hit: %s', filename)
+            logger.info('Cache-hit', xlsx=filename)
             return io.BytesIO(tmp)
         except FileNotFoundError:
-            logger.info('Cache-miss: %s', filename)
+            logger.info('Cache-miss', xlsx=filename)
     tmp = fetch_new_xlsx(url)
     if tmp:
-        logger.info('Successful download: %s', filename)
+        logger.info('Successful download', xlsx=filename)
         # Write to cache if enabled
         if cache_path:
             with open(cache_path, 'wb') as cache_file:
@@ -365,9 +372,134 @@ def load_workbook(xlsx: str):
                     filename=xlsx,
                     read_only=False)
     except Exception as exc:
-        logger.error(xlsx)
+        logger.error('Loading xlsx failed', xlsx=xlsx)
         raise exc
     return workbook
+
+
+def setup_logging(args):
+    '''
+    Setting up logging function
+    '''
+
+    if args.verbose == 1:
+        level = logging.INFO
+    elif args.verbose > 1:
+        level = logging.DEBUG
+    else:
+        level = logging.WARN
+    processors = [
+            # If log level is too low, abort pipeline and throw away log entry.
+            structlog.stdlib.filter_by_level,
+            # Add the name of the logger to event dict.
+            structlog.stdlib.add_logger_name,
+            # If the "stack_info" key in the event dict is true, remove it and
+            # render the current stack trace in the "stack" key.
+            structlog.processors.StackInfoRenderer(),
+            # If some value is in bytes, decode it to a unicode str.
+            structlog.processors.UnicodeDecoder(),
+            # Add callsite parameters.
+            structlog.processors.CallsiteParameterAdder(
+                parameters=[
+                    structlog.processors.CallsiteParameter.FUNC_NAME,
+                    structlog.processors.CallsiteParameter.LINENO
+                ]
+            ),
+    ]
+    if hasattr(sys.stdout, 'isatty') and sys.stdout.isatty():
+        # Running in a terminal, assume dev and setup nice stuff
+        processors += [
+            structlog.stdlib.add_log_level,
+            structlog.processors.TimeStamper(),
+            structlog.dev.set_exc_info,
+            structlog.dev.ConsoleRenderer()
+        ]
+        # And we want a logging level of INFO anyway
+        level = logging.INFO
+    else:
+        # Running under some supervisor, be more production-y
+        processors += [
+            # If the "exc_info" key in the event dict is either true or a
+            # sys.exc_info() tuple, remove "exc_info" and render the exception
+            # with traceback into the "exception" key.
+            structlog.processors.format_exc_info,
+        ]
+        handler = logging.StreamHandler(sys.stdout)
+        if args.ecs_logging:
+            processors += [
+                ecs_logging.StructlogFormatter()
+            ]
+            handler = ElasticSearchLogHandler(
+                host='localhost:9200',
+                url='/logs-enexgr2elasticsearch-1/_doc',
+                method='POST',
+                secure=False,
+                credentials=(args.user, args.password),
+            )
+        else:
+            processors += [
+                structlog.stdlib.add_log_level,
+                # Add a timestamp in ISO 8601 format.
+                structlog.processors.TimeStamper(fmt="iso"),
+                structlog.processors.KeyValueRenderer()
+            ]
+
+
+    logging.basicConfig(
+        format="%(message)s",
+        handlers=[handler],
+        level=level,
+    )
+    structlog.configure(
+        processors=processors,
+        wrapper_class=structlog.stdlib.BoundLogger,
+        logger_factory=structlog.stdlib.LoggerFactory(),
+        cache_logger_on_first_use=True,
+    )
+    return structlog.get_logger(__name__)
+
+
+class ElasticSearchLogHandler(HTTPHandler):
+    '''
+    Class logging to elasticsearch
+    '''
+
+    def emit(self, record):
+        """
+        Emit a record.
+        Send the record to the web server as a application/json
+        """
+        try:
+            msg = self.format(record)
+            host = self.host
+            h = self.getConnection(host, self.secure)
+            url = self.url
+            if self.method == "GET":
+                raise ValueError("No GET please")
+            h.putrequest(self.method, url)
+            # support multiple hosts on one IP address...
+            # need to strip optional :port from host, if present
+            i = host.find(":")
+            if i >= 0:
+                host = host[:i]
+            # See issue #30904: putrequest call above already adds this header
+            # on Python 3.x.
+            # h.putheader("Host", host)
+            if self.method == "POST":
+                h.putheader("Content-type",
+                            "application/json")
+                h.putheader("Content-length", str(len(msg)))
+            if self.credentials:
+                import base64
+                s = ('%s:%s' % self.credentials).encode('utf-8')
+                s = 'Basic ' + base64.b64encode(s).strip().decode('ascii')
+                h.putheader('Authorization', s)
+            h.endheaders()
+            if self.method == "POST":
+                h.send(msg.encode('utf-8'))
+            h.getresponse()    #can't do anything with the result
+        except Exception:
+            self.handleError(record)
 
 
 def main():
@@ -443,17 +575,9 @@ def main():
                         action='version',
                         version='%(prog)s ' + VERSION)
     args = parser.parse_args()
-    # Let's setup default logging.
-    logger = logging.getLogger(__name__)
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setFormatter(logging.Formatter(fmt='%(levelname)s:%(name)s:%(message)s'))
-    if args.verbose == 1:
-        logger.setLevel(logging.INFO)
-    if args.verbose > 1:
-        logger.setLevel(logging.DEBUG)
-    if args.ecs_logging:
-        handler.setFormatter(ecs_logging.StdlibFormatter())
-    logger.addHandler(handler)
+
+    # Let's setup logging first
+    logger = setup_logging(args)
 
     elastic_info = dict(
             host = args.host,
@@ -469,7 +593,9 @@ def main():
             elastic_admin_info,
             args.shards,
             args.replicas):
-            logger.critical('Failed to create indices despite being asked to')
+            logger.critical('Failed to create indices despite being asked to',
+                    shards=args.shards,
+                    replicas=args.replicas)
             return 1
 
     start_date = datetime.strptime(args.start, '%Y-%m-%d')
@@ -487,7 +613,8 @@ def main():
             try:
                 base_urls = data['base_urls']
             except KeyError:
-                logger.debug('No base_urls for %s, skip', category)
+                logger.debug('Category missing base_urls, skipping',
+                        category=category)
                 continue
             for market, base_url in base_urls.items():
                 # In 2021-09-22 LIDAs were renamed to CRIDAs. Don't try to fetch
@@ -500,8 +627,8 @@ def main():
                 filepath = base_url % date.strftime('%Y%m%d')
                 xlsx = get_xlsx(args.cache, filepath)
                 if xlsx:
-                    logger.info('Successful fetch. Date: %s, category: %s, market: %s',
-                            date, category, market)
+                    logger.info('Successful xlsx fetch',
+                        xlsx_date=date.isoformat(), category=category, market=market)
                     if category == 'RESULTS':
                         data, hourly_mcps = convert_electricity_market_results_workbook(xlsx)
                         data = data + calculate_electricity_hourly_daily_mcps(hourly_mcps)
@@ -511,11 +638,11 @@ def main():
                         data = convert_electricity_blockorders_workbook(xlsx)
                     if category == 'NGAS_Results':
                         data = convert_gas_workbook(xlsx)
-                    logger.info('xlsx to json done. Date: %s, category: %s, market: %s',
-                            date, category, market)
+                    logger.info('xlsx to json done',
+                            xlsx_date=date.isoformat(), category=category, market=market)
                     if post_to_bulk_elastic(data, bulk_url, elastic_info):
-                        logger.info('Posted to bulk API. Date: %s, category: %s, market: %s',
-                            date, category, market)
+                        logger.info('Posted to bulk API',
+                            xlsx_date=date.isoformat(), category=category, market=market)
 
 
 if __name__ == '__main__':
