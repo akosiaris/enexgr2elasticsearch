@@ -2,7 +2,7 @@
 Some enexgr2elasticsearch constants
 '''
 
-VERSION = '0.1'
+VERSION = '0.0.1'
 ELECTRICITY_MARKETS_META_DATA = {
     'RESULTS': {
         'index': 'enexgr_electricity_market_results',
