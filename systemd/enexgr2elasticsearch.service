@@ -1,6 +1,0 @@
-[Unit]
-Description=fetch and populate elasticsearch indices from enexgroup.gr data
-
-[Service]
-Type=oneshot
-ExecStart=python3 /srv/enexgr/enexgr.py

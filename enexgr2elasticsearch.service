@@ -1,0 +1,9 @@
+[Unit]
+Description=Fetch enexgroup.gr market data and populate elasticsearch indices
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/enexgr2elasticsearch
+
+[Install]
+WantedBy=multi-user.target
