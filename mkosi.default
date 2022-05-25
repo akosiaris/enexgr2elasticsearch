@@ -1,0 +1,16 @@
+[Distribution]
+Distribution=debian
+Release=bullseye
+
+[Output]
+Format=gpt_ext4
+Output=enexgr2elasticsearch.raw
+Hostname=enexgr2elasticsearch
+
+[Partitions]
+RootSize=5G
+
+[Content]
+BuildPackages=python3-pip
+Packages=python3
+WithNetwork=yes

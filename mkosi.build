@@ -1,0 +1,23 @@
+#!/bin/sh
+
+set -ex
+
+mkdir -p $DESTDIR
+python3 -m pip install --prefix=$DESTDIR .
+
+# Let's use the distro-provided OS metadata but let's extend it a tiny
+# bit indicating that we are implementing a portable service
+mkdir -p "$DESTDIR"/etc
+cp /usr/lib/os-release "$DESTDIR"/etc/os-release
+cat >> "$DESTDIR"/etc/os-release <<EOF
+PORTABLE_PRETTY_NAME="enexgr2elasticsearch"
+PORTABLE_PREFIXES="enexgr2elasticsearch"
+EOF
+
+# The default profiles mount the host's /etc/resolv.conf into our
+# image. For that the file to mount over needs to exist. Let's create
+# it here.
+touch "$DESTDIR"/etc/resolv.conf
+
+mkdir -p $DESTDIR/usr/lib/systemd/system
+cp enexgr2elasticsearch.service enexgr2elasticsearch.timer $DESTDIR/usr/lib/systemd/system

@@ -3,6 +3,7 @@ Description=Fetch enexgroup.gr market data and populate elasticsearch indices
 
 [Service]
 Type=oneshot
+Environment=PYTHONPATH=/usr/lib/python3.9/site-packages
 ExecStart=/usr/bin/enexgr2elasticsearch
 
 [Install]
