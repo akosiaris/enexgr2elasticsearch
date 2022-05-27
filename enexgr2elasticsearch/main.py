@@ -86,7 +86,19 @@ def main():
                         action='store_true',
                         default=False,
                         dest='ecs_logging',
-                        help='Use Elastic Common Schema logging')
+                        help='''Use Elastic Common Schema logging. If
+                        --ecs-logging-endpoint is also configured, logs will be
+                        sent there via Elasticsearch REST index API. Otherwise,
+                        stdout will be used''')
+    parser.add_argument('--ecs-logging-endpoint',
+                        dest='ecs_logging_endpoint',
+                        help='''An ECS compatible Elasticsearch index endpoint,
+                        without the scheme (e.g. http://). A valid value would be
+                        "localhost:9200/logs-enexgr2elasticsearch-1/"
+                        which uses the post 7.16 built-in elasticsearch
+                        "logs-*-*" Data Stream.
+                        WARNING: The behavior is very simplistic and crude. If you want proper
+                        handling of logs, invest in a proper log collector''')
     parser.add_argument('--version',
                         action='version',
                         version='%(prog)s ' + VERSION)

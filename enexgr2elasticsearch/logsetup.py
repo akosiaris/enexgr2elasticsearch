@@ -68,13 +68,17 @@ def setup_logging(args):
             processors += [
                 ecs_logging.StructlogFormatter()
             ]
-            handler = ElasticSearchLogHandler(
-                host='localhost:9200',
-                url='/logs-enexgr2elasticsearch-1/_doc',
-                method='POST',
-                secure=False,
-                credentials=(args.user, args.password),
-            )
+            if args.ecs_logging_endpoint:
+                i = args.ecs_logging_endpoint.find('/')
+                host = args.ecs_logging_endpoint[:i]
+                url = args.ecs_logging_endpoint[i:] + '/_doc'
+                handler = ElasticSearchLogHandler(
+                    host=host,
+                    url=url,
+                    method='POST',
+                    secure=False,
+                    credentials=(args.user, args.password),
+                )
         else:
             processors += [
                 structlog.stdlib.add_log_level,
