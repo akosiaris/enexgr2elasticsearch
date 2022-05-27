@@ -1,0 +1,28 @@
+version: '3.7'
+services:
+    elasticsearch:
+      image: elasticsearch:7.16.3
+      restart: always
+      ports:
+        - "127.0.0.1:9200:9200"
+      expose:
+        - "9200"
+      networks:
+        - enexgr2elasticsearch
+      volumes:
+        - elasticsearch:/usr/share/elasticsearch/data
+      environment:
+        - discovery.type=single-node
+    enexgr2elasticsearch:
+      image: akosiaris/enexgr2elasticsearch:0.0.1
+      networks:
+        - enexgr2elasticsearch
+      depends_on:
+        - elasticsearch
+      command: ["--verbose", "--host", "http://elasticsearch:9200/"]
+      # This is on purpose. This isn't a daemon, but rather a script
+      restart: "no"
+networks:
+  enexgr2elasticsearch:
+volumes:
+  elasticsearch:
