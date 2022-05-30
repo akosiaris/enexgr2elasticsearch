@@ -88,13 +88,16 @@ def process_enexgr_days(elastic_info: dict,
         markets_meta_data.update(ELECTRICITY_MARKETS_META_DATA)
         markets_meta_data.update(GAS_MARKETS_META_DATA)
         for category, data in markets_meta_data.items():
+            local_log = logger.bind(
+                xlsx_date=date.isoformat(),
+                category=category)
             try:
                 base_urls = data['base_urls']
             except KeyError:
-                logger.debug('Category missing base_urls, skipping',
-                        category=category)
+                local_log.debug('Category missing base_urls, skipping')
                 continue
             for market, base_url in base_urls.items():
+                local_log = local_log.bind(market=market)
                 # In 2021-09-22 LIDAs were renamed to CRIDAs. Don't try to fetch
                 # LIDAs after this time and CRIDAs before this time
                 if date > datetime(2021, 9, 21) and market.startswith('LIDA'):
@@ -105,11 +108,7 @@ def process_enexgr_days(elastic_info: dict,
                 filepath = base_url % date.strftime('%Y%m%d')
                 xlsx = get_xlsx(cache, filepath)
                 if xlsx:
-                    logger.bind(
-                        xlsx_date=date.isoformat(),
-                        category=category,
-                        market=market)
-                    logger.info('Successful xlsx fetch')
+                    local_log.info('Successful xlsx fetch')
                     if category == 'RESULTS':
                         data, hourly_mcps = convert_electricity_market_results_workbook(xlsx)
                         data = data + calculate_electricity_hourly_daily_mcps(hourly_mcps)
@@ -119,6 +118,6 @@ def process_enexgr_days(elastic_info: dict,
                         data = convert_electricity_blockorders_workbook(xlsx)
                     if category == 'NGAS_Results':
                         data = convert_gas_workbook(xlsx)
-                    logger.info('xlsx to json done')
+                    local_log.info('xlsx to json done')
                     if post_to_bulk_elastic(data, bulk_url, elastic_info):
-                        logger.info('Posted to bulk API')
+                        local_log.info('Posted to bulk API')
