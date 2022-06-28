@@ -15,7 +15,6 @@
     spec: {
         access: 'proxy',
         basicAuth: true,
-        basicAuthPassword: password,
         basicAuthUser: user,
         database: name,
         isDefault: false,
@@ -31,9 +30,10 @@
         },
         name: name,
         orgId: 1,
-        password: '',
         readOnly: false,
-        secureJsonFields: {},
+        secureJsonData: {
+            basicAuthPassword: password,
+        },
         type: 'elasticsearch',
         typeLogoUrl: '',
         url: url,
