@@ -119,5 +119,8 @@ def process_enexgr_days(elastic_info: dict,
                     if category == 'NGAS_Results':
                         data = convert_gas_workbook(xlsx)
                     local_log.info('xlsx to json done')
+                    if not data:
+                        local_log.warn('No data, skipping post')
+                        continue
                     if post_to_bulk_elastic(data, bulk_url, elastic_info):
                         local_log.info('Posted to bulk API')
