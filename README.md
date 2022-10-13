@@ -83,6 +83,19 @@ Not really a proper cache, just a directory that fetched xlsx files will be stor
 
 2 simple system units are provided to facilitate automating the population of data in a timely manner. A service unit as well as a timer unit is provided. Depending on your installation you 'll want to either install them at a system level (`/etc/systemd/system/`) or at a user level (most likely `/home/<username>/.config/systemd/user/`). They will need some adapting probably.
 
+# Grafana/Grizzly
+
+Grafana is a state of the art system from creating and managing graphs. Skip this section if you don't want to have graphs.
+
+It's beyond the scope of this README to instruct someone into getting a grafana instance up and running, there should be plenty of guides in the web. For the rest of this section, the assumption is made that you already have a grafana instance working.
+
+Grafana Grizzly is an effort by some people to instrument Grafana dashboard creation as code. Get grafana grizzly from https://grafana.github.io/grizzly/, read the authentication section of their manuals so you can configure grizzly to your existing grafana application and then
+
+```
+$ cd grizzly
+$ grr apply enexgr.jsonnet
+```
+
 # Docker
 
 A Dockerfile is provided so you can build images and a docker-compose file to facilitate development. Those aren't currently targeted for anything else than development, don't rely on them much
