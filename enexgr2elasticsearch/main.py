@@ -130,7 +130,7 @@ def main():
     start_date = datetime.strptime(args.start, '%Y-%m-%d')
     end_date = datetime.strptime(args.end, '%Y-%m-%d')
 
-    process_enexgr_days(elastic_info, start_date, end_date)
+    process_enexgr_days(elastic_info, start_date, end_date, args.cache)
 
 
 if __name__ == '__main__':
