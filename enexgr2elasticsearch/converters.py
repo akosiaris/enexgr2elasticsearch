@@ -8,6 +8,7 @@ Copyright Alexandros Kosiaris 2022
 import json
 import warnings
 from datetime import datetime
+from collections import Counter
 
 from pytz import timezone
 from openpyxl import load_workbook as _load_workbook
@@ -45,6 +46,7 @@ def convert_electricity_market_results_workbook(xlsx: str) -> tuple:
 
     ret = ''
     hourly_mcps = set()
+    voting = dict()
     for row in rows:
         tmp = [x.value for x in row]
         data = dict(zip(header, tmp))
@@ -62,8 +64,26 @@ def convert_electricity_market_results_workbook(xlsx: str) -> tuple:
                 data['CLASSIFICATION'],
                 data['DELIVERY_MTU'])
         ret += '\n' + json.dumps(data) + '\n'
+        # If the row is about Day-Ahead-Market, use it to calculate hourly MCP
         if data['TARGET'] == 'DAM':
-            hourly_mcps.add((data['MCP'], data['DELIVERY_MTU']))
+            # This is a  weird one. In an ideal world, we 'd just do
+            #
+            #   hourly_mcps.add((data['MCP'], data['DELIVERY_MTU']))
+            #
+            # and call it a day. However, in the real world, humans make
+            # mistakes and sometimes input a value that is wrong. We are in
+            # essence using a "voting" mechanism, where we take the value with
+            # the most entries in a DELIVERU_MTU and assume that's the correct
+            # one This part of the code does the tallying, the for loop below
+            # "announces" the "winner"
+            dmtu = data['DELIVERY_MTU']
+            mcp = data['MCP']
+            if dmtu in voting:
+                voting[dmtu].update([mcp])
+            else:
+                voting[dmtu] = Counter([mcp])
+    for k, v in voting.items():
+        hourly_mcps.add((v.most_common(1)[0][0], k))
     return (ret, hourly_mcps)
 
 
