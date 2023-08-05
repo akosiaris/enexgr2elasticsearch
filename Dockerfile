@@ -1,4 +1,4 @@
-FROM debian:bullseye
+FROM debian:bookworm
 
 LABEL version="0.0.1"
 LABEL description="Populate elasticsearch indices from enexgroup.gr data"

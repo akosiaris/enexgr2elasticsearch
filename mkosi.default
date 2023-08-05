@@ -1,6 +1,6 @@
 [Distribution]
 Distribution=debian
-Release=bullseye
+Release=bookworm
 
 [Output]
 Format=gpt_ext4
