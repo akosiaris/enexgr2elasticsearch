@@ -1,7 +1,7 @@
 '''
 Fetch Greek Energy Exchange Group free data
 
-Copyright Alexandros Kosiaris 2022
+Copyright Alexandros Kosiaris 2024
 '''
 
 import io
@@ -30,20 +30,21 @@ from enexgr2elasticsearch.converters import \
     convert_gas_workbook
 
 
-logger = structlog.get_logger(__name__)
+TIMEOUT = 10 # seconds before we give up fetching data
 
+logger = structlog.get_logger(__name__)
 
 def fetch_new_xlsx(url: str) -> str:
     '''
     Fetch and validate a new xlsx from enexgroup.gr
     '''
 
-    resp = requests.get(url)
+    resp = requests.get(url, timeout=TIMEOUT)
     if resp.status_code == 200:
         return resp.content
-    if resp.status_code == 404 or resp.status_code == 403:
+    if resp.status_code in (403, 404):
         return None
-    raise RuntimeError('Failed to fetch: %s' % resp.status_code)
+    raise RuntimeError(f'Failed to fetch: {resp.status_code}')
 
 
 def get_xlsx(cache: str, filepath: str) -> io.BytesIO:

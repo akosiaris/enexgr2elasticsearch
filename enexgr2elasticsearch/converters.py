@@ -2,7 +2,7 @@
 Convert from Greek Energy Exchange Group xlsx files to JSON objects
 ready to be POSTed to pre-specified Elasticsearch indices
 
-Copyright Alexandros Kosiaris 2022
+Copyright Alexandros Kosiaris 2024
 '''
 
 import json

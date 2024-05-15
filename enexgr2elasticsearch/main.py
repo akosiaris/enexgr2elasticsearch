@@ -1,7 +1,7 @@
 '''
 Populate elasticsearch with Greek Energy Exchange Group free data
 
-Copyright Alexandros Kosiaris 2022
+Copyright Alexandros Kosiaris 2024
 '''
 
 import argparse

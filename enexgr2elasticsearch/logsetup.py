@@ -2,7 +2,7 @@
 Logging helper module. Point is to setup structlog and facilitate sending to
 elasticsearch directly (no logstash, fluentd, filebeat or other similar infra)
 
-Copyright Alexandros Kosiaris 2022
+Copyright Alexandros Kosiaris 2024
 '''
 
 import logging

@@ -2,7 +2,7 @@
 Simple functions to POST/PUT to elasticsearch. Possibly can be replaced by using
 the elasticsearch python package in the future
 
-Copyright Alexandros Kosiaris 2022
+Copyright Alexandros Kosiaris 2024
 '''
 
 import json
@@ -15,6 +15,7 @@ from requests.auth import HTTPBasicAuth
 from enexgr2elasticsearch.constants import ELECTRICITY_MARKETS_META_DATA, GAS_MARKETS_META_DATA
 
 BULK_ENDPOINT = '/_bulk'
+TIMEOUT = 30
 logger = structlog.get_logger(__name__)
 
 def put_to_elastic(data: str, url: str, elastic_info: dict) -> bool:
@@ -36,7 +37,8 @@ def put_to_elastic(data: str, url: str, elastic_info: dict) -> bool:
                 'Content-Type': 'application/json',
             },
             data=data.encode('utf-8'),
-            auth=auth)
+            auth=auth,
+            timeout=TIMEOUT)
         if response.status_code != 200:
             logger.error('Elasticsearch error response',
                     status_code=response.status_code,
@@ -68,7 +70,8 @@ def post_to_bulk_elastic(data: str, url: str, elastic_info: dict) -> bool:
                 'Content-Type': 'application/x-ndjson',
             },
             data=data.encode('utf-8'),
-            auth=auth)
+            auth=auth,
+            timeout=TIMEOUT)
         if response.status_code != 200:
             logger.error('Elasticsearch error response',
                     status_code=response.status_code,
@@ -98,7 +101,7 @@ def create_elasticsearch_indices(elastic_admin_info: dict, shards: int,
     indices = list(electricity_indices) + list(gas_indices)
     for idx in indices:
         # TODO: Fix finding the index files
-        with open('%s.index' % idx, 'r') as fil:
+        with open(f'{idx}.index', 'r', encoding='utf-8') as fil:
             # Load the mappings
             data = json.load(fil)
             data.update(settings)
