@@ -14,6 +14,9 @@ ELECTRICITY_MARKETS_META_DATA = {
             'CRIDA1': '20126/853663/%s_EL-CRIDA1_Results_EN_v01.xlsx',
             'CRIDA2': '20126/853680/%s_EL-CRIDA2_Results_EN_v01.xlsx',
             'CRIDA3': '20126/853704/%s_EL-CRIDA3_Results_EN_v01.xlsx',
+            'IDA1': '20126/3257249/%s_EL-IDA1_Results_EN_v01.xlsx',
+            'IDA2': '20126/3257281/%s_EL-IDA2_Results_EN_v01.xlsx',
+            'IDA3': '20126/3257522/%s_EL-IDA3_Results_EN_v01.xlsx',
         },
     },
     'CURVES': {
@@ -23,6 +26,9 @@ ELECTRICITY_MARKETS_META_DATA = {
             'CRIDA1': '20126/853660/%s_EL-CRIDA1_AggrCurves_EN_v01.xlsx',
             'CRIDA2': '20126/853695/%s_EL-CRIDA2_AggrCurves_EN_v01.xlsx',
             'CRIDA3': '20126/853701/%s_EL-CRIDA3_AggrCurves_EN_v01.xlsx',
+            'IDA1': '20126/3257246/%s_EL-IDA1_AggrCurves_EN_v01.xlsx',
+            'IDA2': '20126/3257284/%s_EL-IDA2_AggrCurves_EN_v01.xlsx',
+            'IDA3': '20126/3257519/%s_EL-IDA3_AggrCurves_EN_v01.xlsx',
         },
     },
     'BLOCK_ORDERS': {

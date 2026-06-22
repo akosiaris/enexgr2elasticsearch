@@ -105,6 +105,11 @@ def process_enexgr_days(elastic_info: dict,
                     continue
                 if date <= datetime(2021, 9, 21) and market.startswith('CRIDA'):
                     continue
+                # And in 2024-06-14 again renamed to IDAs
+                if date > datetime(2024, 6, 13) and market.startswith('CRIDA'):
+                    continue
+                if date <= datetime(2024, 6, 13) and market.startswith('IDA'):
+                    continue
 
                 filepath = base_url % date.strftime('%Y%m%d')
                 xlsx = get_xlsx(cache, filepath)
