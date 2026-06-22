@@ -10,7 +10,7 @@ from urllib.parse import urljoin
 
 import requests
 import structlog
-from requests.auth import HTTPBasicAuth
+from requests.auth import HTTPBasicAuth, AuthBase
 
 from enexgr2elasticsearch.constants import ELECTRICITY_MARKETS_META_DATA, GAS_MARKETS_META_DATA
 
@@ -18,13 +18,33 @@ BULK_ENDPOINT = '/_bulk'
 TIMEOUT = 30
 logger = structlog.get_logger(__name__)
 
+class APIKeyAuth(AuthBase):
+    '''Attaches Elasticsearch API Key Authentication to the given Request object.'''
+
+    def __init__(self, apikey):
+        self.apikey= apikey
+
+    def __eq__(self, other):
+        return self.apikey== getattr(other, 'apikey', None)
+
+    def __ne__(self, other):
+        return not self == other
+
+    def __call__(self, r):
+        r.headers['Authorization'] = 'ApiKey ' + self.apikey
+        return r
+
+
 def put_to_elastic(data: str, url: str, elastic_info: dict) -> bool:
     '''
     PUT to elasticsearch
     '''
+    apikey = elastic_info.get('apikey')
     user = elastic_info.get('user')
     password = elastic_info.get('password')
-    if user and password:
+    if apikey:
+        auth=APIKeyAuth(apikey)
+    elif user and password:
         auth=HTTPBasicAuth(user, password)
     else:
         auth=None
@@ -55,9 +75,12 @@ def post_to_bulk_elastic(data: str, url: str, elastic_info: dict) -> bool:
     '''
     Post to elasticsearch
     '''
+    apikey = elastic_info.get('apikey')
     user = elastic_info.get('user')
     password = elastic_info.get('password')
-    if user and password:
+    if apikey:
+        auth=APIKeyAuth(apikey)
+    elif user and password:
         auth=HTTPBasicAuth(user, password)
     else:
         auth=None

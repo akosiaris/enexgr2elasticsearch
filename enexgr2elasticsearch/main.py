@@ -32,6 +32,9 @@ def main():
                         dest='host',
                         default='http://localhost:9200',
                         help='URL pointing to the elasticsearch cluster')
+    parser.add_argument('--api-key',
+                        dest='apikey',
+                        help='Elasticsearch API key to write data. If specified, takes precedence over user/password')
     parser.add_argument('-u',
                         '--user',
                         dest='user',
@@ -40,6 +43,9 @@ def main():
                         '--password',
                         dest='password',
                         help='Elasticsearch user password')
+    parser.add_argument('--admin-api-key',
+                        dest='admin_apikey',
+                        help='Elasticsearch API key to create the indices. If specified, takes precedence over admin_user/admin_password')
     parser.add_argument('--admin-user',
                         dest='admin_user',
                         help='Elasticsearch admin user to create the indices')
@@ -110,10 +116,12 @@ def main():
 
     elastic_info = dict(
             host = args.host,
+            apikey = args.apikey,
             user = args.user,
             password = args.password)
     elastic_admin_info = dict(
             host = args.host,
+            apikey = args.admin_apikey,
             user = args.admin_user,
             password = args.admin_password)
 
