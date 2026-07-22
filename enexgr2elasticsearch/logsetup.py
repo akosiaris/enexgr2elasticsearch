@@ -10,7 +10,6 @@ import sys
 
 from logging.handlers import HTTPHandler
 
-import ecs_logging
 import structlog
 
 def setup_logging(args):
@@ -65,6 +64,7 @@ def setup_logging(args):
             structlog.processors.format_exc_info,
         ]
         if args.ecs_logging:
+            import ecs_logging
             processors += [
                 ecs_logging.StructlogFormatter()
             ]
