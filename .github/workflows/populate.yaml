@@ -33,3 +33,10 @@ jobs:
         ENDPOINT: ${{ secrets.ENDPOINT }}
         APIKEY: ${{ secrets.APIKEY }}
       run: python3 enexgr2elasticsearch/main.py -H $ENDPOINT --api-key $APIKEY
+  workflow-keepalive:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - uses: liskin/gh-workflow-keepalive@v1
